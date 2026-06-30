@@ -2,7 +2,7 @@ import streamlit as st
 import datetime
 from streamlit_autorefresh import st_autorefresh
 
-# 📱 🏛️ ஆப் பெயர் "PCAS VIRTUAL OFFICE" என்று சிஸ்டமிற்குள் மாற்றப்பட்டுள்ளது!
+# 📱 🏛️ ஆப் பெயர் செட்டப்
 st.set_page_config(
     page_title="PCAS VIRTUAL OFFICE", 
     page_icon="🛡️", 
@@ -10,19 +10,44 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 🔄 ஆட்டோ-ரிஃப்ரெஷ் செட்டப்: ஒவ்வொரு 5 வினாடிக்கும் தானா புதுப்பிக்கும்
+# 🔄 ஆட்டோ-ரிஃப்ரெஷ் செட்டப்
 st_autorefresh(interval=5000, key="datarefresh")
 
 st.markdown("""
 <style>
-    /* 📱 💻 மொபைல் மற்றும் கம்ப்யூட்டர் இரண்டிற்கும் ஏத்த குளோபல் ஸ்டைல்ஸ் */
+    /* 📱 💻 குளோபல் ஸ்டைல்ஸ் */
     html, body, [data-testid="stAppViewContainer"] {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
 
+    /* 🎯 🖼️ பேக்ரவுண்டில் PCAS லோகோவை Mild-ஆக (Watermark) வரவைக்கும் மேஜிக் CSS */
+    [data-testid="stAppViewContainer"]::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        /* நம்ம ரெபாசிட்டரியில் இருக்கும் லோகோ ஃபைலை பேக்ரவுண்டாக இணைக்கிறோம் */
+        background-image: url("app/static/pcas_logo.png"); 
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 450px; /* லோகோவின் அளவு - மொபைல் மற்றும் பிசிக்கு ஏற்றவாறு */
+        opacity: 0.04; /* 👈 இதுதான் லோகோவை மிகவும் மங்கலாக (Mild) மாற்றுகிறது */
+        z-index: -1; /* கோடு மற்றும் பட்டன்களுக்கு பின்னால் லோகோ செல்ல இது உதவும் */
+        pointer-events: none;
+    }
+    
+    /* மொபைல் ஸ்கிரீனுக்காக லோகோ அளவை சரிசெய்தல் */
+    @media (max-width: 768px) {
+        [data-testid="stAppViewContainer"]::before {
+            background-size: 280px; /* போனில் பார்க்கும்போது லோகோ கொஞ்சம் சிறியதாக மாறும் */
+        }
+    }
+
     /* 🏛️ 🔵 மெயின் ஹெடருக்கான Mild Color பாக்ஸ் */
     .header-mild-box {
-        background-color: #ebf5fb !important;
+        background-color: rgba(235, 245, 251, 0.8) !important; /* லோகோ தெரிய கொஞ்சம் வெளிப்படைத்தன்மை */
         border: 1px solid #d6eaf8 !important;
         border-radius: 12px !important;
         padding: 12px 18px !important;
@@ -56,19 +81,19 @@ st.markdown("""
     .bg-sales { background-color: #27ae60; }
     .bg-accountant { background-color: #c0392b; }
 
-    .status-online { background-color: #e8f8f5; border-left: 5px solid #2ecc71; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-busy { background-color: #fce4d6; border-left: 5px solid #e74c3c; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-break { background-color: #fef9e7; border-left: 5px solid #f1c40f; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-wfh { background-color: #ebf5fb; border-left: 5px solid #3498db; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-offline { background-color: #f4f6f7; border-left: 5px solid #95a5a6; border-radius: 6px; padding: 10px; text-align: center; }
+    .status-online { background-color: rgba(232, 248, 245, 0.85); border-left: 5px solid #2ecc71; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
+    .status-busy { background-color: rgba(252, 228, 214, 0.85); border-left: 5px solid #e74c3c; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
+    .status-break { background-color: rgba(254, 249, 231, 0.85); border-left: 5px solid #f1c40f; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
+    .status-wfh { background-color: rgba(235, 245, 243, 0.85); border-left: 5px solid #3498db; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
+    .status-offline { background-color: rgba(244, 246, 247, 0.85); border-left: 5px solid #95a5a6; border-radius: 6px; padding: 10px; text-align: center; }
 
     .desk-title { font-size: 12px; font-weight: bold; color: #2c3e50; margin-bottom: 3px; }
-    .metric-card { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0px 2px 5px rgba(0,0,0,0.05); }
-    .notice-box { background-color: #fff3cd; border: 1px solid #ffeba2; border-left: 6px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 14px; }
+    .metric-card { background-color: rgba(248, 249, 250, 0.9); border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0px 2px 5px rgba(0,0,0,0.05); }
+    .notice-box { background-color: rgba(255, 243, 205, 0.9); border: 1px solid #ffeba2; border-left: 6px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 14px; }
 
     /* 🎨 சாட் பேக்ரவுண்ட் கண்டெய்னர்கள் */
     .group-chat-container { 
-        background-color: #fef9e7 !important; 
+        background-color: rgba(254, 249, 231, 0.9) !important; 
         border: none !important; 
         border-radius: 14px !important; 
         padding: 15px !important; 
@@ -76,7 +101,7 @@ st.markdown("""
         box-shadow: 0px 4px 12px rgba(0,0,0,0.05) !important; 
     }
     .private-chat-container { 
-        background-color: #fbf5f3 !important; 
+        background-color: rgba(251, 245, 243, 0.9) !important; 
         border: none !important; 
         border-radius: 14px !important; 
         padding: 15px !important; 
@@ -84,76 +109,25 @@ st.markdown("""
         box-shadow: 0px 4px 12px rgba(0,0,0,0.05) !important; 
     }
     
-    /* தடிமனான டார்க் பாக்ஸ் டைட்டில்கள் */
-    .group-dark-box {
-        background-color: #b7950b !important; 
-        border-radius: 10px !important;
-        padding: 12px !important;
-        text-align: center !important;
-        color: #ffffff !important;
-        font-size: 16px !important;
-        font-weight: bold !important;
-        letter-spacing: 0.5px !important;
-        margin-bottom: 12px !important;
-    }
-    .private-dark-box {
-        background-color: #a04000 !important; 
-        border-radius: 10px !important;
-        padding: 12px !important;
-        text-align: center !important;
-        color: #ffffff !important;
-        font-size: 16px !important;
-        font-weight: bold !important;
-        letter-spacing: 0.5px !important;
-        margin-bottom: 12px !important;
-    }
-    
-    /* டார்க் பர்பிள் டெஸ்க் அலோகேஷன் பாக்ஸ் */
-    .allocation-dark-box {
-        background-color: #4a235a !important; 
-        border-radius: 10px !important;
-        padding: 12px !important;
-        text-align: center !important;
-        color: #ffffff !important;
-        font-size: 16px !important;
-        font-weight: bold !important;
-        letter-spacing: 0.5px !important;
-        margin-bottom: 15px !important;
-        box-shadow: inset 0px 2px 4px rgba(0,0,0,0.2) !important;
-    }
+    .group-dark-box { background-color: #b7950b !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 12px !important; }
+    .private-dark-box { background-color: #a04000 !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 12px !important; }
+    .allocation-dark-box { background-color: #4a235a !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 15px !important; }
 
-    /* சாட் மெசேஜ் பாக்ஸ்கள் */
     .msg-log-container { background: #ffffff; border-radius: 8px; padding: 10px; border: 1px solid #d4efdf; margin-top: 5px; }
     .msg-out { background-color: #d5f5e3; border-radius: 10px; padding: 8px 12px; margin: 5px 0; max-width: 85%; float: right; clear: both; box-shadow: 1px 1px 2px rgba(0,0,0,0.1); font-size: 14px; }
     .msg-in { background-color: #ffffff; border-radius: 10px; padding: 8px 12px; margin: 5px 0; max-width: 85%; float: left; clear: both; border: 1px solid #e5e7eb; box-shadow: 1px 1px 2px rgba(0,0,0,0.05); font-size: 14px; }
 
-    /* 🚨 📱 ஆண்ட்ராய்டு மற்றும் ஐபோனுக்கான பிரத்யேக மொபைல் ஆப்டிமைசேஷன் */
     @media (max-width: 768px) {
-        .main-title {
-            font-size: 22px !important;
-        }
-        .header-mild-box {
-            padding: 10px !important;
-            margin-bottom: 15px !important;
-        }
-        .stButton > button {
-            width: 100% !important;
-            padding: 12px !important;
-            font-size: 16px !important;
-        }
-        [data-testid="stHorizontalBlock"] {
-            flex-direction: column !important;
-            gap: 10px !important;
-        }
-        .status-online, .status-busy, .status-break, .status-wfh, .status-offline {
-            margin-bottom: 8px !important;
-            padding: 12px !important;
-        }
+        .main-title { font-size: 22px !important; }
+        .header-mild-box { padding: 10px !important; margin-bottom: 15px !important; }
+        .stButton > button { width: 100% !important; padding: 12px !important; font-size: 16px !important; }
+        [data-testid="stHorizontalBlock"] { flex-direction: column !important; gap: 10px !important; }
+        .status-online, .status-busy, .status-break, .status-wfh, .status-offline { margin-bottom: 8px !important; padding: 12px !important; }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 🔑 செக்யூரிட்டி பாஸ்கோடு செட்டப்
+# 🔑 செக்யூரிட்டி பாஸ்கோடு 세ட்டிங்ஸ்
 OFFICE_PASSWORD = "PCAS@2026"
 
 if "logged_in" not in st.session_state:
@@ -190,7 +164,6 @@ if not st.session_state.logged_in:
                     st.error("❌ Incorrect Office Passcode! Access Denied.")
     st.stop()
 
-# 💡 பயனர் பெயர் வேரியபிள் செட்டப்
 my_name = st.session_state.username
 
 # ----------------------------------------------------
@@ -212,7 +185,6 @@ office_desks = get_global_office_db()
 all_messages = get_global_message_db()
 notice_board = get_global_notice_db()
 
-# 🔔 சவுண்ட் அலர்ட் லாஜிக்
 if "msg_count" not in st.session_state:
     st.session_state.msg_count = len(all_messages)
 
@@ -245,14 +217,10 @@ with col_top2:
 
 st.markdown("---")
 
-# ----------------------------------------------------
-# 📢 DIGITAL NOTICE BOARD
-# ----------------------------------------------------
+# 📢 NOTICE BOARD
 st.markdown(f'<div class="notice-box">📢 <b>OFFICE NOTICE BOARD:</b> "{notice_board["text"]}" <span style="float:right; color:#666; font-size:11px;">- Posted by {notice_board["by"]}</span></div>', unsafe_allow_html=True)
 
-# ----------------------------------------------------
-# 📈 மேனேஜர் லைவ் டேஷ்போர்டு
-# ----------------------------------------------------
+# 📊 OVERVIEW
 active_staff = []
 online_count = 0
 busy_count = 0
@@ -282,7 +250,6 @@ with m_col5:
 
 st.write("")
 
-# 🛠️ மேனேஜர் ஸ்பெஷல் கண்ட்ரோல்
 with st.expander("🛠️ Manager Control Panel (Special Tools)", expanded=False):
     st.markdown("##### 📝 Update Office Notice Board")
     new_notice = st.text_input("Type new announcement here:", value=notice_board["text"])
@@ -296,9 +263,7 @@ st.markdown("---")
 
 col_control, col_floor_plan = st.columns([1.1, 1.9])
 
-# ----------------------------------------------------
-# 1. இடது பக்கம்: கண்ட்ரோல் பேனல் & சாட் ஸ்டேஷன்
-# ----------------------------------------------------
+# 1. இடது பக்கம்: கண்ட்ரோல் பேனல் & சாட்
 with col_control:
     st.markdown('<div class="allocation-dark-box">👤 STAFF LOGIN & DESK ALLOCATION</div>', unsafe_allow_html=True)
     st.info(f"Logged in as: **{my_name}**")
@@ -340,7 +305,7 @@ with col_control:
 
     st.markdown("---")
     
-    # 📢 குரூப் சாட் கார்டு 
+    # குரூப் சாட்
     st.markdown('<div class="group-chat-container">', unsafe_allow_html=True)
     st.markdown('<div class="group-dark-box">📢 GROUP COMMON BOARD</div>', unsafe_allow_html=True)
     
@@ -377,7 +342,7 @@ with col_control:
                         st.download_button(label=f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"grp_dl_{msg['time']}_{msg['sender']}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 🔒 பிரைவேட் சாட் கார்டு
+    # பிரைவேட் சாட்
     if st.session_state.chat_with_user:
         target_user = st.session_state.chat_with_user
         if target_user != my_name:
@@ -385,7 +350,7 @@ with col_control:
             st.markdown('<div class="private-dark-box">🔒 PRIVATE CHAT ROOM</div>', unsafe_allow_html=True)
             
             with st.form(key=f"private_form_{target_user}", clear_on_submit=True):
-                chat_input = st.text_input(f"Write message to {target_user}:", placeholder="Type your private message here...")
+                chat_input = st.text_input(f"Write message to {target_user}:")
                 p_uploaded_file = st.file_uploader(f"Send Photo/File 📎", type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx"], key=f"p_file_{target_user}")
                 submit_private = st.form_submit_button("Send Private Message 📤", use_container_width=True)
                 
@@ -410,7 +375,6 @@ with col_control:
                 st.session_state.chat_with_user = None
                 st.rerun()
             
-            st.markdown("##### 💬 Private Message Logs:")
             has_messages = False
             for idx, msg in enumerate(reversed(all_messages)):
                 if (msg["sender"] == my_name and msg["receiver"] == target_user):
@@ -433,12 +397,9 @@ with col_control:
             
             if not has_messages:
                 st.caption("No private messages yet.")
-                
             st.markdown('</div>', unsafe_allow_html=True)
 
-# ----------------------------------------------------
-# 2. வலது பக்கம்: CUSTOM INTERACTIVE FLOOR PLAN
-# ----------------------------------------------------
+# 2. இடது பக்கம்: FLOOR PLAN
 with col_floor_plan:
     st.subheader("📢 PCAS Collaboration Hub")
     st.link_button("🚨 JOIN OFFICE GROUP CALL (ALL ONLINE STAFF)", COMMON_GROUP_MEET_URL, type="primary", use_container_width=True)
@@ -454,7 +415,6 @@ with col_floor_plan:
             with cols[idx]:
                 if d_data["name"] == "🪑 Empty":
                     st.markdown(f'<div class="status-offline"><div class="desk-title">Desk {d_num}</div>🪑 Empty</div>', unsafe_allow_html=True)
-                    st.write("")
                 else:
                     if "Online" in d_data["status"]: style_class = "status-online"
                     elif "Busy" in d_data["status"]: style_class = "status-busy"
@@ -464,7 +424,6 @@ with col_floor_plan:
 
                     st.markdown(f'<div class="{style_class}"><div class="desk-title">Desk {d_num}</div>👤 <b>{d_data["name"]}</b><br>{d_data["status"]}<br><span style="font-size:10px; color:#555;">🕒 {d_data.get("checkin_time", "-")}</span></div>', unsafe_allow_html=True)
                     st.link_button("🎛️ Connect Call", "https://meet.google.com/new", key=f"lnk_{d_num}", use_container_width=True)
-                    
                     if st.button("💬 Chat", key=f"chat_btn_desk_{d_num}", use_container_width=True):
                         st.session_state.chat_with_user = d_data["name"]
                         st.rerun()
