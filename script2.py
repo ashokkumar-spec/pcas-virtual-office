@@ -1,8 +1,10 @@
 import streamlit as st
 import datetime
+import random
+import time
 from streamlit_autorefresh import st_autorefresh
 
-# 📱 🏛️ ஆப் பெயர் செட்டப்
+# 📱 🏛️ ஆப் பெயர் மற்றும் பிரீமியம் செட்டப்
 st.set_page_config(
     page_title="PCAS VIRTUAL OFFICE", 
     page_icon="🛡️", 
@@ -10,44 +12,19 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 🔄 ஆட்டோ-ரிஃப்ரெஷ் செட்டப்
+# 🔄 ஆட்டோ-ரிஃப்ரெஷ் செட்டப் (ஒவ்வொரு 5 வினாடிக்கும் தானா புதுப்பிக்கும்)
 st_autorefresh(interval=5000, key="datarefresh")
 
 st.markdown("""
 <style>
-    /* 📱 💻 குளோபல் ஸ்டைல்ஸ் */
+    /* 📱 💻 மொபைல் மற்றும் கம்ப்யூட்டர் இரண்டிற்கும் ஏத்த குளோபல் ஸ்டைல்ஸ் */
     html, body, [data-testid="stAppViewContainer"] {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
 
-    /* 🎯 🖼️ பேக்ரவுண்டில் PCAS லோகோவை Mild-ஆக (Watermark) வரவைக்கும் மேஜிக் CSS */
-    [data-testid="stAppViewContainer"]::before {
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        /* நம்ம ரெபாசிட்டரியில் இருக்கும் லோகோ ஃபைலை பேக்ரவுண்டாக இணைக்கிறோம் */
-        background-image: url("app/static/pcas_logo.png"); 
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: 450px; /* லோகோவின் அளவு - மொபைல் மற்றும் பிசிக்கு ஏற்றவாறு */
-        opacity: 0.04; /* 👈 இதுதான் லோகோவை மிகவும் மங்கலாக (Mild) மாற்றுகிறது */
-        z-index: -1; /* கோடு மற்றும் பட்டன்களுக்கு பின்னால் லோகோ செல்ல இது உதவும் */
-        pointer-events: none;
-    }
-    
-    /* மொபைல் ஸ்கிரீனுக்காக லோகோ அளவை சரிசெய்தல் */
-    @media (max-width: 768px) {
-        [data-testid="stAppViewContainer"]::before {
-            background-size: 280px; /* போனில் பார்க்கும்போது லோகோ கொஞ்சம் சிறியதாக மாறும் */
-        }
-    }
-
     /* 🏛️ 🔵 மெயின் ஹெடருக்கான Mild Color பாக்ஸ் */
     .header-mild-box {
-        background-color: rgba(235, 245, 251, 0.8) !important; /* லோகோ தெரிய கொஞ்சம் வெளிப்படைத்தன்மை */
+        background-color: #ebf5fb !important;
         border: 1px solid #d6eaf8 !important;
         border-radius: 12px !important;
         padding: 12px 18px !important;
@@ -81,19 +58,19 @@ st.markdown("""
     .bg-sales { background-color: #27ae60; }
     .bg-accountant { background-color: #c0392b; }
 
-    .status-online { background-color: rgba(232, 248, 245, 0.85); border-left: 5px solid #2ecc71; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-busy { background-color: rgba(252, 228, 214, 0.85); border-left: 5px solid #e74c3c; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-break { background-color: rgba(254, 249, 231, 0.85); border-left: 5px solid #f1c40f; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-wfh { background-color: rgba(235, 245, 243, 0.85); border-left: 5px solid #3498db; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-offline { background-color: rgba(244, 246, 247, 0.85); border-left: 5px solid #95a5a6; border-radius: 6px; padding: 10px; text-align: center; }
+    .status-online { background-color: #e8f8f5; border-left: 5px solid #2ecc71; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
+    .status-busy { background-color: #fce4d6; border-left: 5px solid #e74c3c; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
+    .status-break { background-color: #fef9e7; border-left: 5px solid #f1c40f; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
+    .status-wfh { background-color: #ebf5fb; border-left: 5px solid #3498db; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
+    .status-offline { background-color: #f4f6f7; border-left: 5px solid #95a5a6; border-radius: 6px; padding: 10px; text-align: center; }
 
     .desk-title { font-size: 12px; font-weight: bold; color: #2c3e50; margin-bottom: 3px; }
-    .metric-card { background-color: rgba(248, 249, 250, 0.9); border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0px 2px 5px rgba(0,0,0,0.05); }
-    .notice-box { background-color: rgba(255, 243, 205, 0.9); border: 1px solid #ffeba2; border-left: 6px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 14px; }
+    .metric-card { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0px 2px 5px rgba(0,0,0,0.05); }
+    .notice-box { background-color: #fff3cd; border: 1px solid #ffeba2; border-left: 6px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 14px; }
 
     /* 🎨 சாட் பேக்ரவுண்ட் கண்டெய்னர்கள் */
     .group-chat-container { 
-        background-color: rgba(254, 249, 231, 0.9) !important; 
+        background-color: #fef9e7 !important; 
         border: none !important; 
         border-radius: 14px !important; 
         padding: 15px !important; 
@@ -101,7 +78,7 @@ st.markdown("""
         box-shadow: 0px 4px 12px rgba(0,0,0,0.05) !important; 
     }
     .private-chat-container { 
-        background-color: rgba(251, 245, 243, 0.9) !important; 
+        background-color: #fbf5f3 !important; 
         border: none !important; 
         border-radius: 14px !important; 
         padding: 15px !important; 
@@ -113,10 +90,10 @@ st.markdown("""
     .private-dark-box { background-color: #a04000 !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 12px !important; }
     .allocation-dark-box { background-color: #4a235a !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 15px !important; }
 
-    .msg-log-container { background: #ffffff; border-radius: 8px; padding: 10px; border: 1px solid #d4efdf; margin-top: 5px; }
     .msg-out { background-color: #d5f5e3; border-radius: 10px; padding: 8px 12px; margin: 5px 0; max-width: 85%; float: right; clear: both; box-shadow: 1px 1px 2px rgba(0,0,0,0.1); font-size: 14px; }
     .msg-in { background-color: #ffffff; border-radius: 10px; padding: 8px 12px; margin: 5px 0; max-width: 85%; float: left; clear: both; border: 1px solid #e5e7eb; box-shadow: 1px 1px 2px rgba(0,0,0,0.05); font-size: 14px; }
 
+    /* மொபைல் ஆப்டிமைசேஷன் */
     @media (max-width: 768px) {
         .main-title { font-size: 22px !important; }
         .header-mild-box { padding: 10px !important; margin-bottom: 15px !important; }
@@ -127,7 +104,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 🔑 செக்யூரிட்டி பாஸ்கோடு 세ட்டிங்ஸ்
+# 🔑 செக்யூரிட்டி பாஸ்கோடு செட்டப்
 OFFICE_PASSWORD = "PCAS@2026"
 
 if "logged_in" not in st.session_state:
@@ -135,9 +112,7 @@ if "logged_in" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = ""
 
-# ----------------------------------------------------
 # 🔒 செக்யூர் லாகின் விண்டோ
-# ----------------------------------------------------
 if not st.session_state.logged_in:
     st.write("")
     st.write("")
@@ -166,273 +141,263 @@ if not st.session_state.logged_in:
 
 my_name = st.session_state.username
 
-# ----------------------------------------------------
-# 💾 குளோபல் மெமரி சிஸ்டம்
-# ----------------------------------------------------
+# 💾 குளோபல் மெமரி சிஸ்டம் (டேட்டாபேஸ்)
 @st.cache_resource
 def get_global_office_db():
     return {i: {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"} for i in range(1, 23)}
 
 @st.cache_resource
-def get_global_message_db():
-    return []
-
+def get_global_message_db(): return []
 @st.cache_resource
-def get_global_notice_db():
-    return {"text": "Welcome to PCAS Virtual Office! Stay Connected.", "by": "Admin"}
+def get_global_notice_db(): return {"text": "Welcome to PCAS Virtual Office! Stay Connected.", "by": "Admin"}
 
 office_desks = get_global_office_db()
 all_messages = get_global_message_db()
 notice_board = get_global_notice_db()
 
-if "msg_count" not in st.session_state:
-    st.session_state.msg_count = len(all_messages)
-
-if len(all_messages) > st.session_state.msg_count:
-    st.session_state.msg_count = len(all_messages)
-    st.markdown('<iframe src="https://assets.mixkit.co/active_storage/sfx/2869/2869-500.wav" allow="autoplay" style="display:none;"></iframe>', unsafe_allow_html=True)
-
-if "chat_with_user" not in st.session_state:
-    st.session_state.chat_with_user = None
-
+if "chat_with_user" not in st.session_state: st.session_state.chat_with_user = None
 COMMON_GROUP_MEET_URL = "https://meet.google.com/new"
 
 # 🏛️ லோகோ + பெயர் செட்டப்
 st.markdown('<div class="header-mild-box">', unsafe_allow_html=True)
 col_logo_native, col_title_native = st.columns([0.08, 0.92])
-with col_logo_native:
-    st.image("pcas_logo.png", width=60)
-with col_title_native:
-    st.markdown('<h1 class="main-title">PCAS VIRTUAL OFFICE</h1>', unsafe_allow_html=True)
+with col_logo_native: st.image("pcas_logo.png", width=60)
+with col_title_native: st.markdown('<h1 class="main-title">PCAS VIRTUAL OFFICE</h1>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-col_top1, col_top2 = st.columns([2, 1])
-with col_top1:
-    st.write(f"📅 Today: {datetime.date.today().strftime('%B %d, %Y')} | 🕒 Live Shift Status")
-with col_top2:
-    if st.button("🚪 Logout From Office", use_container_width=True):
-        st.session_state.logged_in = False
-        st.session_state.username = ""
-        st.rerun()
+# ----------------------------------------------------
+# 🧭 NAVIGATION SIDEBAR: ஆபீஸ் ஃப்ளோர் அல்லது பிளே ஜோன்?
+# ----------------------------------------------------
+app_mode = st.sidebar.radio("🧭 NAVIGATION MENU", ["🏢 Virtual Office Floor", "🎮 PCAS Play Zone (Break Time)"])
 
-st.markdown("---")
-
-# 📢 NOTICE BOARD
-st.markdown(f'<div class="notice-box">📢 <b>OFFICE NOTICE BOARD:</b> "{notice_board["text"]}" <span style="float:right; color:#666; font-size:11px;">- Posted by {notice_board["by"]}</span></div>', unsafe_allow_html=True)
-
-# 📊 OVERVIEW
-active_staff = []
-online_count = 0
-busy_count = 0
-break_count = 0
-wfh_count = 0
-
-for idx, data in office_desks.items():
-    if data["name"] != "🪑 Empty":
-        active_staff.append(f"{data['name']} ({data['status']})")
-        if "Online" in data["status"]: online_count += 1
-        elif "Busy" in data["status"]: busy_count += 1
-        elif "Break" in data["status"]: break_count += 1
-        elif "WFH" in data["status"]: wfh_count += 1
-
-st.markdown("### 📊 Live Management Overview")
-m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
-with m_col1:
-    st.markdown(f'<div class="metric-card"><b style="font-size:12px; color:#2ecc71;">🟢 Online Staff</b><h4>{online_count}</h4></div>', unsafe_allow_html=True)
-with m_col2:
-    st.markdown(f'<div class="metric-card"><b style="font-size:12px; color:#e74c3c;">🔴 Busy / Meeting</b><h4>{busy_count}</h4></div>', unsafe_allow_html=True)
-with m_col3:
-    st.markdown(f'<div class="metric-card"><b style="font-size:12px; color:#f1c40f;">🟡 On Break</b><h4>{break_count}</h4></div>', unsafe_allow_html=True)
-with m_col4:
-    st.markdown(f'<div class="metric-card"><b style="font-size:12px; color:#3498db;">🔵 WFH Staff</b><h4>{wfh_count}</h4></div>', unsafe_allow_html=True)
-with m_col5:
-    st.markdown(f'<div class="metric-card"><b style="font-size:12px; color:#1a365d;">👥 Total Active</b><h4>{len(active_staff)}</h4></div>', unsafe_allow_html=True)
-
-st.write("")
-
-with st.expander("🛠️ Manager Control Panel (Special Tools)", expanded=False):
-    st.markdown("##### 📝 Update Office Notice Board")
-    new_notice = st.text_input("Type new announcement here:", value=notice_board["text"])
-    if st.button("📢 Broadcast Notice to Everyone"):
-        notice_board["text"] = new_notice
-        notice_board["by"] = my_name
-        st.success("Notice updated successfully!")
-        st.rerun()
-
-st.markdown("---")
-
-col_control, col_floor_plan = st.columns([1.1, 1.9])
-
-# 1. இடது பக்கம்: கண்ட்ரோல் பேனல் & சாட்
-with col_control:
-    st.markdown('<div class="allocation-dark-box">👤 STAFF LOGIN & DESK ALLOCATION</div>', unsafe_allow_html=True)
-    st.info(f"Logged in as: **{my_name}**")
-
-    desk_options = []
-    for i in range(1, 23):
-        if 1 <= i <= 3: dept = "Manager"
-        elif 4 <= i <= 7: dept = "Chemical Team"
-        elif 8 <= i <= 9: dept = "Mechanical Team"
-        elif 10 <= i <= 14: dept = "Electrical Team"
-        elif 15 <= i <= 17: dept = "Account Manager"
-        elif 18 <= i <= 20: dept = "Sales Team"
-        else: dept = "Accountant"
-
-        if office_desks[i]["name"] == "🪑 Empty" or office_desks[i]["name"] == my_name:
-            desk_options.append(f"Desk {i} ({dept})")
-
-    selected_desk_str = st.selectbox("Select Your Department Desk:", desk_options)
-    desk_num = int(selected_desk_str.split(" ")[1])
-
-    my_status = st.radio("Your Status:", ["Online 🟢", "Busy/Meeting 🔴", "On Break 🟡", "WFH 🔵"], horizontal=True)
-
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("🚀 Occupy Desk & Check-In", use_container_width=True):
-            for i, val in list(office_desks.items()):
-                if val["name"] == my_name: 
-                    office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
-            now_time = datetime.datetime.now().strftime("%I:%M %p")
-            office_desks[desk_num] = {"name": my_name, "status": my_status, "checkin_time": now_time}
-            st.rerun()
-
-    with col_btn2:
-        if st.button("🚪 Leave Desk", use_container_width=True):
-            for i, val in list(office_desks.items()):
-                if val["name"] == my_name: 
-                    office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+# ====================================================
+# MODE 1: வர்ச்சுவல் ஆபீஸ் ஃப்ளோர் லேஅவுட்
+# ====================================================
+if app_mode == "🏢 Virtual Office Floor":
+    col_top1, col_top2 = st.columns([2, 1])
+    with col_top1: st.write(f"📅 Today: {datetime.date.today().strftime('%B %d, %Y')} | 🕒 Live Shift Status")
+    with col_top2:
+        if st.button("🚪 Logout From Office", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.username = ""
             st.rerun()
 
     st.markdown("---")
-    
-    # குரூப் சாட்
-    st.markdown('<div class="group-chat-container">', unsafe_allow_html=True)
-    st.markdown('<div class="group-dark-box">📢 GROUP COMMON BOARD</div>', unsafe_allow_html=True)
-    
-    with st.form(key="group_chat_form", clear_on_submit=True):
-        group_input = st.text_input("Message to everyone:")
-        uploaded_file = st.file_uploader("Share Photo/File 📎", type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx"], key="group_file")
-        submit_group = st.form_submit_button("Broadcast 🌍", use_container_width=True)
-        
-        if submit_group and (group_input or uploaded_file):
-            file_data = None
-            file_name = None
-            if uploaded_file is not None:
-                file_data = uploaded_file.read()
-                file_name = uploaded_file.name
-                
-            all_messages.append({
-                "sender": my_name, 
-                "receiver": "Everyone", 
-                "text": group_input, 
-                "file": file_data,
-                "file_name": file_name,
-                "time": datetime.datetime.now().strftime("%H:%M")
-            })
+    st.markdown(f'<div class="notice-box">📢 <b>OFFICE NOTICE BOARD:</b> "{notice_board["text"]}" <span style="float:right; color:#666; font-size:11px;">- Posted by {notice_board["by"]}</span></div>', unsafe_allow_html=True)
+
+    # 📊 லைவ் ஓவர்வியூ டேஷ்போர்டு
+    active_staff = []; online_count = 0; busy_count = 0; break_count = 0; wfh_count = 0
+    for idx, data in office_desks.items():
+        if data["name"] != "🪑 Empty":
+            active_staff.append(data["name"])
+            if "Online" in data["status"]: online_count += 1
+            elif "Busy" in data["status"]: busy_count += 1
+            elif "Break" in data["status"]: break_count += 1
+            elif "WFH" in data["status"]: wfh_count += 1
+
+    st.markdown("### 📊 Live Management Overview")
+    m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
+    m_col1.markdown(f'<div class="metric-card"><b style="color:#2ecc71; font-size:12px;">🟢 Online Staff</b><h4>{online_count}</h4></div>', unsafe_allow_html=True)
+    m_col2.markdown(f'<div class="metric-card"><b style="color:#e74c3c; font-size:12px;">🔴 Busy / Meeting</b><h4>{busy_count}</h4></div>', unsafe_allow_html=True)
+    m_col3.markdown(f'<div class="metric-card"><b style="color:#f1c40f; font-size:12px;">🟡 On Break</b><h4>{break_count}</h4></div>', unsafe_allow_html=True)
+    m_col4.markdown(f'<div class="metric-card"><b style="color:#3498db; font-size:12px;">🔵 WFH Staff</b><h4>{wfh_count}</h4></div>', unsafe_allow_html=True)
+    m_col5.markdown(f'<div class="metric-card"><b style="color:#1a365d; font-size:12px;">👥 Total Active</b><h4>{len(active_staff)}</h4></div>', unsafe_allow_html=True)
+
+    st.write("")
+    with st.expander("🛠️ Manager Control Panel (Special Tools)", expanded=False):
+        new_notice = st.text_input("Type new announcement here:", value=notice_board["text"])
+        if st.button("📢 Broadcast Notice to Everyone"):
+            notice_board["text"] = new_notice
+            notice_board["by"] = my_name
+            st.success("Notice updated!")
             st.rerun()
 
-    with st.expander("📜 View Group Logs", expanded=True):
-        for msg in reversed(all_messages):
-            if msg["receiver"] == "Everyone": 
-                st.markdown(f"`{msg['time']}` **{msg['sender']}**: {msg['text'] if msg['text'] else ''}")
-                if msg.get("file") is not None:
-                    if msg["file_name"].lower().endswith(('.png', '.jpg', '.jpeg')):
-                        st.image(msg["file"], caption=msg["file_name"], width=250)
-                    else:
-                        st.download_button(label=f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"grp_dl_{msg['time']}_{msg['sender']}")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("---")
+    col_control, col_floor_plan = st.columns([1.1, 1.9])
 
-    # பிரைவேட் சாட்
-    if st.session_state.chat_with_user:
-        target_user = st.session_state.chat_with_user
-        if target_user != my_name:
-            st.markdown('<div class="private-chat-container">', unsafe_allow_html=True)
-            st.markdown('<div class="private-dark-box">🔒 PRIVATE CHAT ROOM</div>', unsafe_allow_html=True)
-            
-            with st.form(key=f"private_form_{target_user}", clear_on_submit=True):
-                chat_input = st.text_input(f"Write message to {target_user}:")
-                p_uploaded_file = st.file_uploader(f"Send Photo/File 📎", type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx"], key=f"p_file_{target_user}")
-                submit_private = st.form_submit_button("Send Private Message 📤", use_container_width=True)
-                
-                if submit_private and (chat_input or p_uploaded_file):
-                    p_file_data = None
-                    p_file_name = None
-                    if p_uploaded_file is not None:
-                        p_file_data = p_uploaded_file.read()
-                        p_file_name = p_uploaded_file.name
-                        
-                    all_messages.append({
-                        "sender": my_name, 
-                        "receiver": target_user, 
-                        "text": chat_input, 
-                        "file": p_file_data,
-                        "file_name": p_file_name,
-                        "time": datetime.datetime.now().strftime("%H:%M")
-                    })
-                    st.rerun()
-            
-            if st.button("❌ Close Private Chat", key="close_chat_btn", use_container_width=True):
-                st.session_state.chat_with_user = None
+    # இடது பக்கம் கண்ட்ரோல் & சாட் விண்டோ
+    with col_control:
+        st.markdown('<div class="allocation-dark-box">👤 STAFF LOGIN & DESK ALLOCATION</div>', unsafe_allow_html=True)
+        st.info(f"Logged in as: **{my_name}**")
+
+        desk_options = []
+        for i in range(1, 23):
+            if 1 <= i <= 3: dept = "Manager"
+            elif 4 <= i <= 7: dept = "Chemical Team"
+            elif 8 <= i <= 9: dept = "Mechanical Team"
+            elif 10 <= i <= 14: dept = "Electrical Team"
+            elif 15 <= i <= 17: dept = "Account Manager"
+            elif 18 <= i <= 20: dept = "Sales Team"
+            else: dept = "Accountant"
+
+            if office_desks[i]["name"] == "🪑 Empty" or office_desks[i]["name"] == my_name:
+                desk_options.append(f"Desk {i} ({dept})")
+
+        selected_desk_str = st.selectbox("Select Your Department Desk:", desk_options)
+        desk_num = int(selected_desk_str.split(" ")[1])
+        my_status = st.radio("Your Status:", ["Online 🟢", "Busy/Meeting 🔴", "On Break 🟡", "WFH 🔵"], horizontal=True)
+
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("🚀 Occupy Desk & Check-In", use_container_width=True):
+                for i, val in list(office_desks.items()):
+                    if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+                office_desks[desk_num] = {"name": my_name, "status": my_status, "checkin_time": datetime.datetime.now().strftime("%I:%M %p")}
                 st.rerun()
-            
-            has_messages = False
-            for idx, msg in enumerate(reversed(all_messages)):
-                if (msg["sender"] == my_name and msg["receiver"] == target_user):
-                    st.markdown(f"`{msg['time']}` 📤 *To {target_user}:* {msg['text'] if msg['text'] else ''}")
+        with col_btn2:
+            if st.button("🚪 Leave Desk", use_container_width=True):
+                for i, val in list(office_desks.items()):
+                    if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+                st.rerun()
+
+        st.markdown("---")
+        
+        # 📢 குரூப் சாட் போர்டு
+        st.markdown('<div class="group-chat-container"><div class="group-dark-box">📢 GROUP COMMON BOARD</div>', unsafe_allow_html=True)
+        with st.form(key="group_chat_form", clear_on_submit=True):
+            group_input = st.text_input("Message to everyone:")
+            uploaded_file = st.file_uploader("Share Photo/File 📎", type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx"], key="group_file")
+            submit_group = st.form_submit_button("Broadcast 🌍", use_container_width=True)
+            if submit_group and (group_input or uploaded_file):
+                f_data = uploaded_file.read() if uploaded_file else None
+                f_name = uploaded_file.name if uploaded_file else None
+                all_messages.append({"sender": my_name, "receiver": "Everyone", "text": group_input, "file": f_data, "file_name": f_name, "time": datetime.datetime.now().strftime("%H:%M")})
+                st.rerun()
+        with st.expander("📜 View Group Logs", expanded=True):
+            for msg in reversed(all_messages):
+                if msg["receiver"] == "Everyone":
+                    st.markdown(f"`{msg['time']}` **{msg['sender']}**: {msg['text'] if msg['text'] else ''}")
                     if msg.get("file") is not None:
-                        if msg["file_name"].lower().endswith(('.png', '.jpg', '.jpeg')):
-                            st.image(msg["file"], caption=msg["file_name"], width=200)
-                        else:
-                            st.download_button(label=f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"p_dl_out_{idx}")
-                    has_messages = True
-                
-                elif (msg["sender"] == target_user and msg["receiver"] == my_name):
-                    st.markdown(f"`{msg['time']}` 📥 *From {target_user}:* **{msg['text'] if msg['text'] else ''}**")
-                    if msg.get("file") is not None:
-                        if msg["file_name"].lower().endswith(('.png', '.jpg', '.jpeg')):
-                            st.image(msg["file"], caption=msg["file_name"], width=200)
-                        else:
-                            st.download_button(label=f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"p_dl_in_{idx}")
-                    has_messages = True
-            
-            if not has_messages:
-                st.caption("No private messages yet.")
-            st.markdown('</div>', unsafe_allow_html=True)
+                        if msg["file_name"].lower().endswith(('.png', '.jpg', '.jpeg')): st.image(msg["file"], width=200)
+                        else: st.download_button(f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"g_dl_{msg['time']}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# 2. இடது பக்கம்: FLOOR PLAN
-with col_floor_plan:
-    st.subheader("📢 PCAS Collaboration Hub")
-    st.link_button("🚨 JOIN OFFICE GROUP CALL (ALL ONLINE STAFF)", COMMON_GROUP_MEET_URL, type="primary", use_container_width=True)
-    st.markdown("---")
-
-    def draw_desks(title, bg_class, start_idx, end_idx):
-        st.markdown(f'<div class="dept-box {bg_class}">{title}</div>', unsafe_allow_html=True)
-        desk_range = list(range(start_idx, end_idx + 1))
-        cols = st.columns(len(desk_range))
-
-        for idx, d_num in enumerate(desk_range):
-            d_data = office_desks[d_num]
-            with cols[idx]:
-                if d_data["name"] == "🪑 Empty":
-                    st.markdown(f'<div class="status-offline"><div class="desk-title">Desk {d_num}</div>🪑 Empty</div>', unsafe_allow_html=True)
-                else:
-                    if "Online" in d_data["status"]: style_class = "status-online"
-                    elif "Busy" in d_data["status"]: style_class = "status-busy"
-                    elif "Break" in d_data["status"]: style_class = "status-break"
-                    elif "WFH" in d_data["status"]: style_class = "status-wfh"
-                    else: style_class = "status-offline"
-
-                    st.markdown(f'<div class="{style_class}"><div class="desk-title">Desk {d_num}</div>👤 <b>{d_data["name"]}</b><br>{d_data["status"]}<br><span style="font-size:10px; color:#555;">🕒 {d_data.get("checkin_time", "-")}</span></div>', unsafe_allow_html=True)
-                    st.link_button("🎛️ Connect Call", "https://meet.google.com/new", key=f"lnk_{d_num}", use_container_width=True)
-                    if st.button("💬 Chat", key=f"chat_btn_desk_{d_num}", use_container_width=True):
-                        st.session_state.chat_with_user = d_data["name"]
+        # 🔒 பிரைவேட் தனிநபர் சாட் ரூம்
+        if st.session_state.chat_with_user:
+            target_user = st.session_state.chat_with_user
+            if target_user != my_name:
+                st.markdown('<div class="private-chat-container"><div class="private-dark-box">🔒 PRIVATE CHAT ROOM</div>', unsafe_allow_html=True)
+                with st.form(key=f"p_form_{target_user}", clear_on_submit=True):
+                    chat_input = st.text_input(f"Write message to {target_user}:")
+                    p_file = st.file_uploader("Send Photo/File 📎", type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx"], key=f"p_file_{target_user}")
+                    if st.form_submit_button("Send Private Message 📤") and (chat_input or p_file):
+                        pf_data = p_file.read() if p_file else None
+                        pf_name = p_file.name if p_file else None
+                        all_messages.append({"sender": my_name, "receiver": target_user, "text": chat_input, "file": pf_data, "file_name": pf_name, "time": datetime.datetime.now().strftime("%H:%M")})
                         st.rerun()
-        st.write("")
+                if st.button("❌ Close Private Chat", use_container_width=True):
+                    st.session_state.chat_with_user = None
+                    st.rerun()
+                for idx, msg in enumerate(reversed(all_messages)):
+                    if msg["sender"] == my_name and msg["receiver"] == target_user:
+                        st.markdown(f"`{msg['time']}` 📤 *To {target_user}:* {msg['text'] if msg['text'] else ''}")
+                    elif msg["sender"] == target_user and msg["receiver"] == my_name:
+                        st.markdown(f"`{msg['time']}` 📥 *From {target_user}:* **{msg['text'] if msg['text'] else ''}**")
+                st.markdown('</div>', unsafe_allow_html=True)
 
-    draw_desks("💼 MANAGER ROOM (Desks 1-3)", "bg-manager", 1, 3)
-    draw_desks("🧪 CHEMICAL TEAM (Desks 4-7)", "bg-chemical", 4, 7)
-    draw_desks("🔧 MECHANICAL TEAM (Desks 8-9)", "bg-mechanical", 8, 9)
-    draw_desks("⚡ ELECTRICAL TEAM (Desks 10-14)", "bg-electrical", 10, 14)
-    draw_desks("📊 ACCOUNT MANAGER (Desks 15-17)", "bg-acc-manager", 15, 17)
-    draw_desks("📈 SALES TEAM (Desks 18-20)", "bg-sales", 18, 20)
-    draw_desks("🧮 ACCOUNTANT (Desks 21-22)", "bg-accountant", 21, 22)
+    # வலது பக்கம் டிபார்ட்மென்ட் லேஅவுட் (Floor Plan)
+    with col_floor_plan:
+        st.subheader("📢 PCAS Collaboration Hub")
+        st.link_button("🚨 JOIN OFFICE GROUP CALL (ALL ONLINE STAFF)", COMMON_GROUP_MEET_URL, type="primary", use_container_width=True)
+        st.markdown("---")
+
+        def draw_desks(title, bg_class, start_idx, end_idx):
+            st.markdown(f'<div class="dept-box {bg_class}">{title}</div>', unsafe_allow_html=True)
+            cols = st.columns(end_idx - start_idx + 1)
+            for idx, d_num in enumerate(range(start_idx, end_idx + 1)):
+                d_data = office_desks[d_num]
+                with cols[idx]:
+                    if d_data["name"] == "🪑 Empty":
+                        st.markdown(f'<div class="status-offline"><div class="desk-title">Desk {d_num}</div>🪑 Empty</div>', unsafe_allow_html=True)
+                    else:
+                        if "Online" in d_data["status"]: style_class = "status-online"
+                        elif "Busy" in d_data["status"]: style_class = "status-busy"
+                        elif "Break" in d_data["status"]: style_class = "status-break"
+                        else: style_class = "status-wfh"
+
+                        st.markdown(f'<div class="{style_class}"><div class="desk-title">Desk {d_num}</div>👤 <b>{d_data["name"]}</b><br>{d_data["status"]}</div>', unsafe_allow_html=True)
+                        st.link_button("🎛️ Call", "https://meet.google.com/new", key=f"lnk_{d_num}")
+                        if st.button("💬 Chat", key=f"cb_{d_num}"):
+                            st.session_state.chat_with_user = d_data["name"]
+                            st.rerun()
+            st.write("")
+
+        draw_desks("💼 MANAGER ROOM (Desks 1-3)", "bg-manager", 1, 3)
+        draw_desks("🧪 CHEMICAL TEAM (Desks 4-7)", "bg-chemical", 4, 7)
+        draw_desks("🔧 MECHANICAL TEAM (Desks 8-9)", "bg-mechanical", 8, 9)
+        draw_desks("⚡ ELECTRICAL TEAM (Desks 10-14)", "bg-electrical", 10, 14)
+        draw_desks("📊 ACCOUNT MANAGER (Desks 15-17)", "bg-acc-manager", 15, 17)
+        draw_desks("📈 SALES TEAM (Desks 18-20)", "bg-sales", 18, 20)
+        draw_desks("🧮 ACCOUNTANT (Desks 21-22)", "bg-accountant", 21, 22)
+
+# ====================================================
+# MODE 2: பிளே ஜோன் (பாம்பு கேம் 🐍)
+# ====================================================
+else:
+    st.title("🎮 PCAS Snake Play Zone")
+    st.write("வேலைக்கு நடுவே ஒரு சின்ன ரிலாக்சேஷன்! பாம்புக்கு பசிக்குது, சாப்பாடு குடுங்க! 🍏")
+
+    if 'snake' not in st.session_state:
+        st.session_state.snake = [(5, 5), (5, 6), (5, 7)]
+        st.session_state.direction = 'UP'
+        st.session_state.food = (random.randint(1, 12), random.randint(1, 12))
+        st.session_state.score = 0
+        st.session_state.game_over = False
+
+    st.write("### 🕹️ Controls (Mobile & PC)")
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c2:
+        if st.button("🔼 UP", use_container_width=True) and st.session_state.direction != 'DOWN': st.session_state.direction = 'UP'
+    
+    col_dir = st.columns([1, 1, 1])
+    with col_dir[0]:
+        if st.button("◀️ LEFT", use_container_width=True) and st.session_state.direction != 'RIGHT': st.session_state.direction = 'LEFT'
+    with col_dir[1]:
+        st.markdown(f"<h3 style='text-align:center;'>🍎 Score: {st.session_state.score}</h3>", unsafe_allow_html=True)
+    with col_dir[2]:
+        if st.button("▶️ RIGHT", use_container_width=True) and st.session_state.direction != 'LEFT': st.session_state.direction = 'RIGHT'
+            
+    with c2:
+        if st.button("🔽 DOWN", use_container_width=True) and st.session_state.direction != 'UP': st.session_state.direction = 'DOWN'
+
+    col_action1, col_action2 = st.columns(2)
+    with col_action1:
+        if st.button("🏃 MOVE SNAKE (அடுத்து நகர)", type="primary", use_container_width=True):
+            if not st.session_state.game_over:
+                head_x, head_y = st.session_state.snake[0]
+                if st.session_state.direction == 'UP': head_x -= 1
+                elif st.session_state.direction == 'DOWN': head_x += 1
+                elif st.session_state.direction == 'LEFT': head_y -= 1
+                elif st.session_state.direction == 'RIGHT': head_y += 1
+
+                new_head = (head_x, head_y)
+                if (head_x < 0 or head_x >= 14 or head_y < 0 or head_y >= 14 or new_head in st.session_state.snake):
+                    st.session_state.game_over = True
+                else:
+                    st.session_state.snake.insert(0, new_head)
+                    if new_head == st.session_state.food:
+                        st.session_state.score += 10
+                        st.session_state.food = (random.randint(0, 13), random.randint(0, 13))
+                    else: st.session_state.snake.pop()
+    with col_action2:
+        if st.button("🔄 RESTART GAME", use_container_width=True):
+            st.session_state.snake = [(5, 5), (5, 6), (5, 7)]
+            st.session_state.direction = 'UP'
+            st.session_state.food = (random.randint(1, 12), random.randint(1, 12))
+            st.session_state.score = 0
+            st.session_state.game_over = False
+            st.rerun()
+
+    # 🎨 கேம் மேப் கிரிட் லேஅவுட் (14x14 Grid)
+    grid_html = "<div style='display:grid; grid-template-columns: repeat(14, 25px); gap:2px; background:#222; padding:10px; border-radius:8px; width:fit-content; margin:auto;'>"
+    for r in range(14):
+        for c in range(14):
+            if (r, c) == st.session_state.snake[0]: grid_html += "<div style='width:25px; height:25px; background:#2ecc71; border-radius:50%; text-align:center;'>👀</div>"
+            elif (r, c) in st.session_state.snake: grid_html += "<div style='width:25px; height:25px; background:#27ae60; border-radius:4px;'></div>"
+            elif (r, c) == st.session_state.food: grid_html += "<div style='width:25px; height:25px; background:#e74c3c; border-radius:50%; text-align:center;'>🍎</div>"
+            else: grid_html += "<div style='width:25px; height:25px; background:#333; border-radius:4px;'></div>"
+    grid_html += "</div>"
+    st.markdown(grid_html, unsafe_allow_html=True)
+
+    if st.session_state.game_over:
+        st.error(f"💥 GAME OVER! Score: {st.session_state.score} Points. Restart பண்ணுங்க அசோக்!")
