@@ -98,7 +98,7 @@ st.markdown("""
 
 # 🔑 செக்யூரிட்டி பாஸ்கோடு செட்டப்
 OFFICE_PASSWORD = "PCAS@2026"
-ADMIN_EXTRACT_PASSWORD = "ADMIN@PCAS" # 👈 டாக்குமெண்ட் எடுக்க பிரத்யேக ரகசிய பாஸ்வேர்ட்!
+ADMIN_EXTRACT_PASSWORD = "ADMIN@PCAS"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -211,8 +211,13 @@ with st.expander("🛠️ Manager & Admin Control Panel (Notice & Attendance Rep
         st.markdown("##### 📥 Monthly Attendance Report Extractor")
         st.write("Click below to download the complete attendance log of this month as a standard CSV spreadsheet file.")
         
-        # 🔐 பாஸ்வேர்ட் பாதுகாப்பு லேயர் 
-        admin_pass_input = st.text_input("Verification Required: Enter Admin Password to Download", type="password", placeholder="Enter admin code...")
+        # 🔑 பயனர் தன் சொந்த திரையில் மட்டும் டைப் செய்யும் லோக்கல் பாஸ்வேர்ட் பாக்ஸ்
+        admin_pass_input = st.text_input(
+            "Verification Required: Enter Admin Password to Download", 
+            type="password", 
+            placeholder="Enter admin code...", 
+            key="local_admin_password_field" # 👈 இது இப்போ குளோபல் சர்வர்ல சேவ் ஆகாது, லோக்கலா மட்டும் வேலை செய்யும்!
+        )
         
         if admin_pass_input == ADMIN_EXTRACT_PASSWORD:
             st.success("🔒 Access Granted! Download button unlocked.")
@@ -224,7 +229,8 @@ with st.expander("🛠️ Manager & Admin Control Panel (Notice & Attendance Rep
                     data=csv_data,
                     file_name=f"PCAS_Attendance_Report_{datetime.date.today().strftime('%B_%Y')}.csv",
                     mime="text/csv",
-                    use_container_width=True
+                    use_container_width=True,
+                    key="local_download_button_trigger"
                 )
             else:
                 st.warning("No attendance records found yet!")
