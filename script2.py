@@ -2,7 +2,7 @@ import streamlit as st
 import datetime
 import pandas as pd
 
-# 📱 🏛️ ஆப் பெயர் மற்றும் பிரீமியம் செட்டப்
+# 📱 🏛️ ஆப் பெயர் மற்றும் பிரீமியம் லேஅவுட் செட்டப்
 st.set_page_config(
     page_title="PCAS VIRTUAL OFFICE", 
     page_icon="🛡️", 
@@ -61,6 +61,7 @@ st.markdown("""
 
     .desk-title { font-size: 12px; font-weight: bold; color: #2c3e50; margin-bottom: 3px; }
     .metric-card { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0px 2px 5px rgba(0,0,0,0.05); }
+    .metric-card h4 { margin: 5px 0 0 0 !important; }
     .notice-box { background-color: #fff3cd; border: 1px solid #ffeba2; border-left: 6px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 14px; }
 
     /* 🎨 சாட் பேக்ரவுண்ட் கண்டெய்னர்கள் */
@@ -100,9 +101,8 @@ st.markdown("""
 OFFICE_PASSWORD = "PCAS@2026"
 ADMIN_EXTRACT_PASSWORD = "ADMIN@PCAS"
 
-# 🌍 🇦🇪 துபாய் நேரத்தை (Dubai Time - GST) கணக்கிடும் மேஜிக் பங்க்ஷன்
+# 🌍 🇦🇪 துபாய் நேரத்தை கணக்கிடும் பங்க்ஷன்
 def get_dubai_time():
-    # சர்வர் நேரத்துடன் 4 மணிநேரம் கூட்டி துபாய் நேரமாக மாற்றுகிறோம்
     utc_now = datetime.datetime.utcnow()
     dubai_offset = datetime.timedelta(hours=4)
     dubai_now = utc_now + dubai_offset
@@ -153,7 +153,6 @@ def get_global_message_db(): return []
 def get_global_notice_db(): return {"text": "Welcome to PCAS Virtual Office! Stay Connected.", "by": "Admin"}
 @st.cache_resource
 def get_global_attendance_log():
-    # ஆரம்ப சாம்பிள் டேட்டாக்கள் (இனிமேல் துபாய் நேரப்படி அழகாக விழும்)
     return [
         {"Staff Name": "ashokkumar", "Date": str(get_dubai_time().date()), "Desk": "Desk 1", "Check-In Time": "09:15 AM", "Check-Out Time": "Active In Office", "Status": "Online"},
         {"Staff Name": "Ramesh", "Date": str(get_dubai_time().date()), "Desk": "Desk 4", "Check-In Time": "09:30 AM", "Check-Out Time": "Active In Office", "Status": "Online"}
@@ -246,6 +245,21 @@ with st.expander("🛠️ Manager & Admin Control Panel (Notice & Attendance Rep
         elif admin_pass_input != "":
             st.error("❌ Invalid Admin Password! Document locked.")
 
+# ----------------------------------------------------
+# 🎵 மியூசிக் லவுஞ்ச் (முழுமையாக ஆங்கிலத்தில் மாற்றப்பட்டுள்ளது)
+# ----------------------------------------------------
+st.markdown("---")
+st.markdown("### 🎵 PCAS Music Lounge")
+st.write("Feeling bored while working? Turn on some relaxing background lofi music and enjoy your workflow! 🎧")
+
+music_choice = st.radio("Choose Station:", ["Off 🎧", "Lofi Work Beats 🎹", "Instrumental Ambient 🌌"], horizontal=True)
+if music_choice == "Lofi Work Beats 🎹":
+    st.audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", loop=True)
+    st.caption("Now Playing: Calm Lofi Focus Beats...")
+elif music_choice == "Instrumental Ambient 🌌":
+    st.audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", loop=True)
+    st.caption("Now Playing: Deep Ambient Concentration Audio...")
+
 st.markdown("---")
 col_control, col_floor_plan = st.columns([1.1, 1.9])
 
@@ -274,43 +288,34 @@ with col_control:
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if st.button("🚀 Occupy Desk & Check-In", use_container_width=True):
-            # பழைய சீட்டை காலி செய்தல்
             for i, val in list(office_desks.items()):
                 if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
             
-            # துபாய் நேரப்படி செக்-இன் செய்தல்
-            dubai_time_str = get_dubai_time().strftime("%I:%M %p")
-            office_desks[desk_num] = {"name": my_name, "status": my_status, "checkin_time": dubai_time_str}
+            checkin_time_str = get_dubai_time().strftime("%I:%M %p")
+            office_desks[desk_num] = {"name": my_name, "status": my_status, "checkin_time": checkin_time_str}
             
-            # எக்செல் காக இமோஜிகளை நீக்கி சுத்தமான எழுத்துக்களை மட்டும் சேர்க்கிறோம்
             clean_status = my_status.replace("🟢","").replace("🔴","").replace("🟡","").replace("🔵","").strip()
             
             attendance_log.append({
                 "Staff Name": my_name,
                 "Date": str(get_dubai_time().date()),
                 "Desk": f"Desk {desk_num}",
-                "Check-In Time": dubai_time_str,
-                "Check-Out Time": "Active In Office", # 👈 இன்னும் வெளியேறவில்லை
+                "Check-In Time": checkin_time_str,
+                "Check-Out Time": "Active In Office",
                 "Status": clean_status
             })
-            st.success(f"Checked-In successfully at Dubai Time: {dubai_time_str}!")
+            st.success(f"Checked-In successfully at Dubai Time: {checkin_time_str}!")
             st.rerun()
             
     with col_btn2:
         if st.button("🚪 Leave Desk", use_container_width=True):
             checkout_time_str = get_dubai_time().strftime("%I:%M %p")
-            
-            # மெமரி லாகில் இந்த குறிப்பிட்ட ஸ்டாஃபின் செக்-அவுட் நேரத்தை அப்டேட் செய்தல்
             for row in reversed(attendance_log):
                 if row["Staff Name"] == my_name and row["Check-Out Time"] == "Active In Office":
                     row["Check-Out Time"] = checkout_time_str
                     break
-            
-            # டெஸ்க்கை காலி செய்தல்
             for i, val in list(office_desks.items()):
                 if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
-                
-            st.success(f"Checked-Out successfully at Dubai Time: {checkout_time_str}!")
             st.rerun()
 
     st.markdown("---")
@@ -334,26 +339,6 @@ with col_control:
                     if msg["file_name"].lower().endswith(('.png', '.jpg', '.jpeg')): st.image(msg["file"], width=200)
                     else: st.download_button(f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"g_dl_{msg['time']}")
     st.markdown('</div>', unsafe_allow_html=True)
-
-    # 🔒 பிரைவேட் தனிநபர் சாட் ரூம்
-    if st.session_state.chat_with_user:
-        target_user = st.session_state.chat_with_user
-        if target_user != my_name:
-            st.markdown('<div class="private-chat-container"><div class="private-dark-box">🔒 PRIVATE CHAT ROOM</div>', unsafe_allow_html=True)
-            with st.form(key=f"p_form_{target_user}", clear_on_submit=True):
-                chat_input = st.text_input(f"Write message to {target_user}:")
-                if st.form_submit_button("Send Private Message 📤") and chat_input:
-                    all_messages.append({"sender": my_name, "receiver": target_user, "text": chat_input, "time": get_dubai_time().strftime("%H:%M")})
-                    st.rerun()
-            if st.button("❌ Close Private Chat", use_container_width=True):
-                st.session_state.chat_with_user = None
-                st.rerun()
-            for msg in reversed(all_messages):
-                if msg["sender"] == my_name and msg["receiver"] == target_user:
-                    st.markdown(f"`{msg['time']}` 📤 *To {target_user}:* {msg['text']}")
-                elif msg["sender"] == target_user and msg["receiver"] == my_name:
-                    st.markdown(f"`{msg['time']}` 📥 *From {target_user}:* **{msg['text']}**")
-            st.markdown('</div>', unsafe_allow_html=True)
 
 # வலது பக்கம் டிபார்ட்மென்ட் லேஅவுட் (Floor Plan)
 with col_floor_plan:
