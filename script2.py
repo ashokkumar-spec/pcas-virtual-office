@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import pandas as pd
+import time
 
 # 📱 🏛️ ஆப் பெயர் மற்றும் பிரீமியம் லேஅவுட் செட்டப்
 st.set_page_config(
@@ -73,17 +74,8 @@ st.markdown("""
         margin-top: 12px !important; 
         box-shadow: 0px 4px 12px rgba(0,0,0,0.05) !important; 
     }
-    .private-chat-container { 
-        background-color: #fbf5f3 !important; 
-        border: none !important; 
-        border-radius: 14px !important; 
-        padding: 15px !important; 
-        margin-top: 15px !important; 
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.05) !important; 
-    }
     
     .group-dark-box { background-color: #b7950b !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 12px !important; }
-    .private-dark-box { background-color: #a04000 !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 12px !important; }
     .allocation-dark-box { background-color: #4a235a !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 15px !important; }
 
     /* மொபைல் ஆப்டிமைசேஷன் */
@@ -100,6 +92,7 @@ st.markdown("""
 # 🔑 செக்யூரிட்டி பாஸ்கோடு செட்டப்
 OFFICE_PASSWORD = "PCAS@2026"
 ADMIN_EXTRACT_PASSWORD = "ADMIN@PCAS"
+ALLOWED_DOMAIN = "@pcas-cert.com"
 
 # 🌍 🇦🇪 துபாய் நேரத்தை கணக்கிடும் பங்க்ஷன்
 def get_dubai_time():
@@ -112,39 +105,13 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "username" not in st.session_state:
     st.session_state.username = ""
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
 
-# 🔒 செக்யூர் லாகின் விண்டோ
-if not st.session_state.logged_in:
-    st.write("")
-    st.write("")
-    col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
-    with col_l2:
-        with st.form(key="login_form"):
-            st.image("pcas_logo.png", width=120)
-            st.markdown('<h3 style="color: #1a365d; font-family: sans-serif; margin-top: -10px;">Secure Login Gate</h3>', unsafe_allow_html=True)
-            
-            input_user = st.text_input("Enter Your Name:", placeholder="e.g., ashokkumar").strip()
-            input_pass = st.text_input("Enter Office Secret Passcode:", type="password", placeholder="••••••••")
-            
-            login_btn = st.form_submit_button("Verify & Enter Office 🚀", use_container_width=True)
-            
-            if login_btn:
-                if input_user == "":
-                    st.error("Please enter your name!")
-                elif input_pass == OFFICE_PASSWORD:
-                    st.session_state.logged_in = True
-                    st.session_state.username = input_user
-                    st.success("Access Granted!")
-                    st.rerun()
-                else:
-                    st.error("❌ Incorrect Office Passcode! Access Denied.")
-    st.stop()
-
-my_name = st.session_state.username
-
-# 💾 குளோபல் மெமரி சிஸ்டம் (டேட்டாபேஸ்)
+# 💾 🧹 குளோபல் மெமரி சிஸ்டம் (டேட்டாபேஸ் - கேச் தற்காலிகமாக நீக்கப்பட்டது!)
 @st.cache_resource
 def get_global_office_db():
+    # ஆரம்பத்தில் அனைத்து டெஸ்க்குகளும் காலியாக மட்டுமே இருக்கும்
     return {i: {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"} for i in range(1, 23)}
 
 @st.cache_resource
@@ -152,16 +119,75 @@ def get_global_message_db(): return []
 @st.cache_resource
 def get_global_notice_db(): return {"text": "Welcome to PCAS Virtual Office! Stay Connected.", "by": "Admin"}
 @st.cache_resource
-def get_global_attendance_log():
-    return [
-        {"Staff Name": "ashokkumar", "Date": str(get_dubai_time().date()), "Desk": "Desk 1", "Check-In Time": "09:15 AM", "Check-Out Time": "Active In Office", "Status": "Online"},
-        {"Staff Name": "Ramesh", "Date": str(get_dubai_time().date()), "Desk": "Desk 4", "Check-In Time": "09:30 AM", "Check-Out Time": "Active In Office", "Status": "Online"}
-    ]
+def get_global_attendance_log(): return []
+@st.cache_resource
+def get_global_heartbeat_pool(): return {}
 
 office_desks = get_global_office_db()
 all_messages = get_global_message_db()
 notice_board = get_global_notice_db()
 attendance_log = get_global_attendance_log()
+heartbeat_pool = get_global_heartbeat_pool()
+
+# 🔒 செக்யூர் இமெயில் லாகின் விண்டோ
+if not st.session_state.logged_in:
+    st.write("")
+    st.write("")
+    col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
+    with col_l2:
+        with st.form(key="login_form"):
+            st.image("pcas_logo.png", width=120)
+            st.markdown('<h3 style="color: #1a365d; font-family: sans-serif; margin-top: -10px;">PCAS Secure Login Gate</h3>', unsafe_allow_html=True)
+            
+            input_email = st.text_input("Enter Office Email ID:", placeholder="username@pcas-cert.com").strip().lower()
+            input_pass = st.text_input("Enter Office Secret Passcode:", type="password", placeholder="••••••••")
+            
+            login_btn = st.form_submit_button("Verify & Enter Office 🚀", use_container_width=True)
+            
+            if login_btn:
+                if input_email == "":
+                    st.error("Please enter your office Email ID!")
+                elif ALLOWED_DOMAIN not in input_email:
+                    st.error("❌ Invalid Email! Please use official @pcas-cert.com email.")
+                elif input_pass != OFFICE_PASSWORD:
+                    st.error("❌ Incorrect Office Passcode! Access Denied.")
+                else:
+                    extracted_username = input_email.split("@")[0].replace(".", " ")
+                    
+                    # 🚀 🧹 மேஜிக் கிளீனர்: புதிய ஆள் உள்ளே நுழையும் போது பழைய குப்பைகள் அனைத்தையும் மொத்தமாக துடைக்கிறது!
+                    for i in range(1, 23):
+                        office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+                    heartbeat_pool.clear()
+                    
+                    st.session_state.logged_in = True
+                    st.session_state.username = extracted_username
+                    st.session_state.user_email = input_email
+                    st.success(f"Access Granted! Welcome {extracted_username}.")
+                    st.rerun()
+    st.stop()
+
+my_name = st.session_state.username
+
+# ⚡ 🎯 ஹார்ட்-பீட் ஆக்டிவ் ஸ்டேட்டஸ் மேனேஜர்
+heartbeat_pool[my_name] = time.time()
+
+# 🧹 ஆட்டோ கிளீனப் சிஸ்டம்
+now_ts = time.time()
+disconnected_users = []
+for user, last_active in list(heartbeat_pool.items()):
+    if (now_ts - last_active) > 8:
+        disconnected_users.append(user)
+        del heartbeat_pool[user]
+
+for d_user in disconnected_users:
+    c_out_str = get_dubai_time().strftime("%I:%M %p")
+    for row in reversed(attendance_log):
+        if row["Staff Name"] == d_user and row["Check-Out Time"] == "Active In Office":
+            row["Check-Out Time"] = f"{c_out_str} (Closed App)"
+            break
+    for i, val in list(office_desks.items()):
+        if val["name"] == d_user:
+            office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
 
 if "chat_with_user" not in st.session_state: st.session_state.chat_with_user = None
 COMMON_GROUP_MEET_URL = "https://meet.google.com/new"
@@ -179,8 +205,17 @@ col_top1, col_top2 = st.columns([2, 1])
 with col_top1: st.write(f"📅 Today: {current_dubai_datetime.strftime('%B %d, %Y')} | 🕒 Dubai Live Time: {current_dubai_datetime.strftime('%I:%M %p')}")
 with col_top2:
     if st.button("🚪 Logout From Office", use_container_width=True):
+        if my_name in heartbeat_pool: del heartbeat_pool[my_name]
+        checkout_time_str = get_dubai_time().strftime("%I:%M %p")
+        for row in reversed(attendance_log):
+            if row["Staff Name"] == my_name and row["Check-Out Time"] == "Active In Office":
+                row["Check-Out Time"] = checkout_time_str
+                break
+        for i, val in list(office_desks.items()):
+            if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
         st.session_state.logged_in = False
         st.session_state.username = ""
+        st.session_state.user_email = ""
         st.rerun()
 
 st.markdown("---")
@@ -229,6 +264,17 @@ with st.expander("🛠️ Manager & Admin Control Panel (Notice & Attendance Rep
         
         if admin_pass_input == ADMIN_EXTRACT_PASSWORD:
             st.success("🔒 Access Granted! Download button unlocked.")
+            
+            st.markdown("---")
+            st.markdown("<b style='color:#c0392b;'>⚠️ Master Reset Panel</b>", unsafe_allow_html=True)
+            if st.button("🧹 Force Reset & Clear All Frozen Desks", use_container_width=True):
+                for i in range(1, 23):
+                    if office_desks[i]["name"] != my_name:
+                        office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+                st.success("All old duplicate/frozen desks cleared successfully!")
+                st.rerun()
+            st.markdown("---")
+            
             if len(attendance_log) > 0:
                 df_report = pd.DataFrame(attendance_log)
                 csv_data = df_report.to_csv(index=False).encode('utf-8')
@@ -246,7 +292,7 @@ with st.expander("🛠️ Manager & Admin Control Panel (Notice & Attendance Rep
             st.error("❌ Invalid Admin Password! Document locked.")
 
 # ----------------------------------------------------
-# 🎵 மியூசிக் லவுஞ்ச் (முழுமையாக ஆங்கிலத்தில் மாற்றப்பட்டுள்ளது)
+# 🎵 Music Lounge
 # ----------------------------------------------------
 st.markdown("---")
 st.markdown("### 🎵 PCAS Music Lounge")
@@ -266,7 +312,7 @@ col_control, col_floor_plan = st.columns([1.1, 1.9])
 # இடது பக்கம் கண்ட்ரோல் & சாட் விண்டோ
 with col_control:
     st.markdown('<div class="allocation-dark-box">👤 STAFF LOGIN & DESK ALLOCATION</div>', unsafe_allow_html=True)
-    st.info(f"Logged in as: **{my_name}**")
+    st.info(f"Logged in as: **{st.session_state.user_email}**") 
 
     desk_options = []
     for i in range(1, 23):
@@ -289,7 +335,8 @@ with col_control:
     with col_btn1:
         if st.button("🚀 Occupy Desk & Check-In", use_container_width=True):
             for i, val in list(office_desks.items()):
-                if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+                if val["name"] == my_name:
+                    office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
             
             checkin_time_str = get_dubai_time().strftime("%I:%M %p")
             office_desks[desk_num] = {"name": my_name, "status": my_status, "checkin_time": checkin_time_str}
@@ -304,7 +351,7 @@ with col_control:
                 "Check-Out Time": "Active In Office",
                 "Status": clean_status
             })
-            st.success(f"Checked-In successfully at Dubai Time: {checkin_time_str}!")
+            st.success(f"Checked-In successfully!")
             st.rerun()
             
     with col_btn2:
@@ -315,7 +362,8 @@ with col_control:
                     row["Check-Out Time"] = checkout_time_str
                     break
             for i, val in list(office_desks.items()):
-                if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+                if val["name"] == my_name: 
+                    office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
             st.rerun()
 
     st.markdown("---")
@@ -325,7 +373,7 @@ with col_control:
     with st.form(key="group_chat_form", clear_on_submit=True):
         group_input = st.text_input("Message to everyone:")
         uploaded_file = st.file_uploader("Share Photo/File 📎", type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx"], key="group_file")
-        submit_group = st.form_submit_button("Broadcast 🌍", use_container_width=True)
+        submit_group = st.form_submit_button("Broadcast to Office 🌍", use_container_width=True)
         if submit_group and (group_input or uploaded_file):
             f_data = uploaded_file.read() if uploaded_file else None
             f_name = uploaded_file.name if uploaded_file else None
@@ -337,7 +385,7 @@ with col_control:
                 st.markdown(f"`{msg['time']}` **{msg['sender']}**: {msg['text'] if msg['text'] else ''}")
                 if msg.get("file") is not None:
                     if msg["file_name"].lower().endswith(('.png', '.jpg', '.jpeg')): st.image(msg["file"], width=200)
-                    else: st.download_button(f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"g_dl_{msg['time']}")
+                    else: st.download_button(f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"g_dl_{msg['time']}_{msg['sender']}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # வலது பக்கம் டிபார்ட்மென்ட் லேஅவுட் (Floor Plan)
@@ -360,7 +408,7 @@ with col_floor_plan:
                     elif "Break" in d_data["status"]: style_class = "status-break"
                     else: style_class = "status-wfh"
 
-                    st.markdown(f'<div class="{style_class}"><div class="desk-title">Desk {d_num}</div>👤 <b>{d_data["name"]}</b><br>{d_data["status"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="{style_class}"><div class="{style_class}"><div class="desk-title">Desk {d_num}</div>👤 <b>{d_data["name"]}</b><br>{d_data["status"]}</div>', unsafe_allow_html=True)
                     st.link_button("🎛️ Call", "https://meet.google.com/new", key=f"lnk_{d_num}")
                     if st.button("💬 Chat", key=f"cb_{d_num}"):
                         st.session_state.chat_with_user = d_data["name"]
