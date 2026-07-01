@@ -100,6 +100,14 @@ st.markdown("""
 OFFICE_PASSWORD = "PCAS@2026"
 ADMIN_EXTRACT_PASSWORD = "ADMIN@PCAS"
 
+# 🌍 🇦🇪 துபாய் நேரத்தை (Dubai Time - GST) கணக்கிடும் மேஜிக் பங்க்ஷன்
+def get_dubai_time():
+    # சர்வர் நேரத்துடன் 4 மணிநேரம் கூட்டி துபாய் நேரமாக மாற்றுகிறோம்
+    utc_now = datetime.datetime.utcnow()
+    dubai_offset = datetime.timedelta(hours=4)
+    dubai_now = utc_now + dubai_offset
+    return dubai_now
+
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "username" not in st.session_state:
@@ -145,9 +153,10 @@ def get_global_message_db(): return []
 def get_global_notice_db(): return {"text": "Welcome to PCAS Virtual Office! Stay Connected.", "by": "Admin"}
 @st.cache_resource
 def get_global_attendance_log():
+    # ஆரம்ப சாம்பிள் டேட்டாக்கள் (இனிமேல் துபாய் நேரப்படி அழகாக விழும்)
     return [
-        {"Staff Name": "ashokkumar", "Date": str(datetime.date.today()), "Desk": "Desk 1", "Check-In Time": "09:15 AM", "Status": "Online 🟢"},
-        {"Staff Name": "Ramesh", "Date": str(datetime.date.today()), "Desk": "Desk 4", "Check-In Time": "09:30 AM", "Status": "Online 🟢"}
+        {"Staff Name": "ashokkumar", "Date": str(get_dubai_time().date()), "Desk": "Desk 1", "Check-In Time": "09:15 AM", "Check-Out Time": "Active In Office", "Status": "Online"},
+        {"Staff Name": "Ramesh", "Date": str(get_dubai_time().date()), "Desk": "Desk 4", "Check-In Time": "09:30 AM", "Check-Out Time": "Active In Office", "Status": "Online"}
     ]
 
 office_desks = get_global_office_db()
@@ -166,8 +175,9 @@ with col_title_native: st.markdown('<h1 class="main-title">PCAS VIRTUAL OFFICE</
 st.markdown('</div>', unsafe_allow_html=True)
 
 # 🏢 மெயின் லேஅவுட் தொடக்கம்
+current_dubai_datetime = get_dubai_time()
 col_top1, col_top2 = st.columns([2, 1])
-with col_top1: st.write(f"📅 Today: {datetime.date.today().strftime('%B %d, %Y')} | 🕒 Live Shift Status")
+with col_top1: st.write(f"📅 Today: {current_dubai_datetime.strftime('%B %d, %Y')} | 🕒 Dubai Live Time: {current_dubai_datetime.strftime('%I:%M %p')}")
 with col_top2:
     if st.button("🚪 Logout From Office", use_container_width=True):
         st.session_state.logged_in = False
@@ -211,12 +221,11 @@ with st.expander("🛠️ Manager & Admin Control Panel (Notice & Attendance Rep
         st.markdown("##### 📥 Monthly Attendance Report Extractor")
         st.write("Click below to download the complete attendance log of this month as a standard CSV spreadsheet file.")
         
-        # 🔑 பயனர் தன் சொந்த திரையில் மட்டும் டைப் செய்யும் லோக்கல் பாஸ்வேர்ட் பாக்ஸ்
         admin_pass_input = st.text_input(
             "Verification Required: Enter Admin Password to Download", 
             type="password", 
             placeholder="Enter admin code...", 
-            key="local_admin_password_field" # 👈 இது இப்போ குளோபல் சர்வர்ல சேவ் ஆகாது, லோக்கலா மட்டும் வேலை செய்யும்!
+            key="local_admin_password_field"
         )
         
         if admin_pass_input == ADMIN_EXTRACT_PASSWORD:
@@ -227,7 +236,7 @@ with st.expander("🛠️ Manager & Admin Control Panel (Notice & Attendance Rep
                 st.download_button(
                     label="📥 Download Attendance Report (.csv)",
                     data=csv_data,
-                    file_name=f"PCAS_Attendance_Report_{datetime.date.today().strftime('%B_%Y')}.csv",
+                    file_name=f"PCAS_Attendance_Report_{get_dubai_time().strftime('%B_%Y')}.csv",
                     mime="text/csv",
                     use_container_width=True,
                     key="local_download_button_trigger"
@@ -265,26 +274,43 @@ with col_control:
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if st.button("🚀 Occupy Desk & Check-In", use_container_width=True):
+            # பழைய சீட்டை காலி செய்தல்
             for i, val in list(office_desks.items()):
                 if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
             
-            checkin_time_str = datetime.datetime.now().strftime("%I:%M %p")
-            office_desks[desk_num] = {"name": my_name, "status": my_status, "checkin_time": checkin_time_str}
+            # துபாய் நேரப்படி செக்-இன் செய்தல்
+            dubai_time_str = get_dubai_time().strftime("%I:%M %p")
+            office_desks[desk_num] = {"name": my_name, "status": my_status, "checkin_time": dubai_time_str}
+            
+            # எக்செல் காக இமோஜிகளை நீக்கி சுத்தமான எழுத்துக்களை மட்டும் சேர்க்கிறோம்
+            clean_status = my_status.replace("🟢","").replace("🔴","").replace("🟡","").replace("🔵","").strip()
             
             attendance_log.append({
                 "Staff Name": my_name,
-                "Date": str(datetime.date.today()),
+                "Date": str(get_dubai_time().date()),
                 "Desk": f"Desk {desk_num}",
-                "Check-In Time": checkin_time_str,
-                "Status": my_status
+                "Check-In Time": dubai_time_str,
+                "Check-Out Time": "Active In Office", # 👈 இன்னும் வெளியேறவில்லை
+                "Status": clean_status
             })
-            st.success("Checked-In successfully & Recorded in Log!")
+            st.success(f"Checked-In successfully at Dubai Time: {dubai_time_str}!")
             st.rerun()
             
     with col_btn2:
         if st.button("🚪 Leave Desk", use_container_width=True):
+            checkout_time_str = get_dubai_time().strftime("%I:%M %p")
+            
+            # மெமரி லாகில் இந்த குறிப்பிட்ட ஸ்டாஃபின் செக்-அவுட் நேரத்தை அப்டேட் செய்தல்
+            for row in reversed(attendance_log):
+                if row["Staff Name"] == my_name and row["Check-Out Time"] == "Active In Office":
+                    row["Check-Out Time"] = checkout_time_str
+                    break
+            
+            # டெஸ்க்கை காலி செய்தல்
             for i, val in list(office_desks.items()):
                 if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+                
+            st.success(f"Checked-Out successfully at Dubai Time: {checkout_time_str}!")
             st.rerun()
 
     st.markdown("---")
@@ -298,7 +324,7 @@ with col_control:
         if submit_group and (group_input or uploaded_file):
             f_data = uploaded_file.read() if uploaded_file else None
             f_name = uploaded_file.name if uploaded_file else None
-            all_messages.append({"sender": my_name, "receiver": "Everyone", "text": group_input, "file": f_data, "file_name": f_name, "time": datetime.datetime.now().strftime("%H:%M")})
+            all_messages.append({"sender": my_name, "receiver": "Everyone", "text": group_input, "file": f_data, "file_name": f_name, "time": get_dubai_time().strftime("%H:%M")})
             st.rerun()
     with st.expander("📜 View Group Logs", expanded=True):
         for msg in reversed(all_messages):
@@ -317,7 +343,7 @@ with col_control:
             with st.form(key=f"p_form_{target_user}", clear_on_submit=True):
                 chat_input = st.text_input(f"Write message to {target_user}:")
                 if st.form_submit_button("Send Private Message 📤") and chat_input:
-                    all_messages.append({"sender": my_name, "receiver": target_user, "text": chat_input, "time": datetime.datetime.now().strftime("%H:%M")})
+                    all_messages.append({"sender": my_name, "receiver": target_user, "text": chat_input, "time": get_dubai_time().strftime("%H:%M")})
                     st.rerun()
             if st.button("❌ Close Private Chat", use_container_width=True):
                 st.session_state.chat_with_user = None
