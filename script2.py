@@ -1,424 +1,779 @@
 import streamlit as st
 import datetime
 import pandas as pd
+import sqlite3
 import time
+import base64
+import hashlib
 
-# 📱 🏛️ ஆப் பெயர் மற்றும் பிரீமியம் லேஅவுட் செட்டப்
 st.set_page_config(
-    page_title="PCAS VIRTUAL OFFICE", 
-    page_icon="🛡️", 
+    page_title="PCAS VIRTUAL OFFICE v2",
+    page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 st.markdown("""
 <style>
-    /* 📱 💻 மொபைல் மற்றும் கம்ப்யூட்டர் இரண்டிற்கும் ஏத்த குளோபல் ஸ்டைல்ஸ் */
-    html, body, [data-testid="stAppViewContainer"] {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-    }
-
-    /* 🏛️ 🔵 மெயின் ஹெடருக்கான Mild Color பாக்ஸ் */
-    .header-mild-box {
-        background-color: #ebf5fb !important;
-        border: 1px solid #d6eaf8 !important;
-        border-radius: 12px !important;
-        padding: 12px 18px !important;
-        margin-bottom: 20px !important;
-        box-shadow: 0px 2px 8px rgba(0,0,0,0.03) !important;
-    }
-    
-    .main-title {
-        font-size: 28px !important;
-        font-weight: 800 !important;
-        color: #1a365d !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
-    .dept-box {
-        border-radius: 8px;
-        padding: 10px;
-        margin-top: 10px;
-        margin-bottom: 10px;
-        text-align: center;
-        font-weight: bold;
-        color: #ffffff;
-        font-size: 14px;
-    }
-    .bg-manager { background-color: #2c3e50; }
-    .bg-chemical { background-color: #16a085; }
-    .bg-mechanical { background-color: #2980b9; }
-    .bg-electrical { background-color: #d35400; }
-    .bg-acc-manager { background-color: #8e44ad; }
-    .bg-sales { background-color: #27ae60; }
-    .bg-accountant { background-color: #c0392b; }
-
-    .status-online { background-color: #e8f8f5; border-left: 5px solid #2ecc71; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-busy { background-color: #fce4d6; border-left: 5px solid #e74c3c; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-break { background-color: #fef9e7; border-left: 5px solid #f1c40f; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-wfh { background-color: #ebf5fb; border-left: 5px solid #3498db; border-radius: 6px; padding: 10px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.05); }
-    .status-offline { background-color: #f4f6f7; border-left: 5px solid #95a5a6; border-radius: 6px; padding: 10px; text-align: center; }
-
-    .desk-title { font-size: 12px; font-weight: bold; color: #2c3e50; margin-bottom: 3px; }
-    .metric-card { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; text-align: center; box-shadow: 0px 2px 5px rgba(0,0,0,0.05); }
-    .metric-card h4 { margin: 5px 0 0 0 !important; }
-    .notice-box { background-color: #fff3cd; border: 1px solid #ffeba2; border-left: 6px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 14px; }
-
-    /* 🎨 சாட் பேக்ரவுண்ட் கண்டெய்னர்கள் */
-    .group-chat-container { 
-        background-color: #fef9e7 !important; 
-        border: none !important; 
-        border-radius: 14px !important; 
-        padding: 15px !important; 
-        margin-top: 12px !important; 
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.05) !important; 
-    }
-    
-    .group-dark-box { background-color: #b7950b !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 12px !important; }
-    .allocation-dark-box { background-color: #4a235a !important; border-radius: 10px !important; padding: 12px !important; text-align: center !important; color: #ffffff !important; font-size: 16px !important; font-weight: bold !important; margin-bottom: 15px !important; }
-
-    /* மொபைல் ஆப்டிமைசேஷன் */
-    @media (max-width: 768px) {
-        .main-title { font-size: 22px !important; }
-        .header-mild-box { padding: 10px !important; margin-bottom: 15px !important; }
-        .stButton > button { width: 100% !important; padding: 12px !important; font-size: 16px !important; }
-        [data-testid="stHorizontalBlock"] { flex-direction: column !important; gap: 10px !important; }
-        .status-online, .status-busy, .status-break, .status-wfh, .status-offline { margin-bottom: 8px !important; padding: 12px !important; }
-    }
+html, body, [data-testid="stAppViewContainer"] {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+}
+.header-mild-box {
+    background-color: #ebf5fb !important;
+    border: 1px solid #d6eaf8 !important;
+    border-radius: 12px !important;
+    padding: 12px 18px !important;
+    margin-bottom: 20px !important;
+}
+.main-title { font-size: 28px !important; font-weight: 800 !important; color: #1a365d !important; }
+.dept-box { border-radius: 8px; padding: 10px; margin: 8px 0; text-align: center; font-weight: bold; color: #fff; font-size: 14px; }
+.bg-manager    { background-color: #2c3e50; }
+.bg-chemical   { background-color: #16a085; }
+.bg-mechanical { background-color: #2980b9; }
+.bg-electrical { background-color: #d35400; }
+.bg-acc-manager{ background-color: #8e44ad; }
+.bg-sales      { background-color: #27ae60; }
+.bg-accountant { background-color: #c0392b; }
+.status-online  { background-color: #e8f8f5; border-left: 5px solid #2ecc71; border-radius: 6px; padding: 8px; text-align: center; }
+.status-busy    { background-color: #fce4d6; border-left: 5px solid #e74c3c; border-radius: 6px; padding: 8px; text-align: center; }
+.status-break   { background-color: #fef9e7; border-left: 5px solid #f1c40f; border-radius: 6px; padding: 8px; text-align: center; }
+.status-wfh     { background-color: #ebf5fb; border-left: 5px solid #3498db; border-radius: 6px; padding: 8px; text-align: center; }
+.status-offline { background-color: #f4f6f7; border-left: 5px solid #95a5a6; border-radius: 6px; padding: 8px; text-align: center; }
+.desk-title  { font-size: 11px; font-weight: bold; color: #2c3e50; margin-bottom: 4px; }
+.metric-card { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; text-align: center; }
+.notice-box  { background-color: #fff3cd; border: 1px solid #ffeba2; border-left: 6px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px; }
+.chat-bubble-me {
+    background: linear-gradient(135deg, #dcf8c6, #c8f0a8);
+    border-radius: 18px 18px 4px 18px;
+    padding: 10px 14px; margin: 6px 0 6px 15%;
+    text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 15px;
+}
+.chat-bubble-other {
+    background: #ffffff; border-radius: 18px 18px 18px 4px;
+    padding: 10px 14px; margin: 4px 0;
+    text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #eee; font-size: 15px; flex: 1;
+}
+.chat-time   { font-size: 10px; color: #999; margin-top: 3px; }
+.chat-sender { font-size: 11px; color: #075e54; font-weight: bold; margin-bottom: 3px; }
+.unread-badge { background: #e74c3c; color: white; border-radius: 50%; padding: 2px 7px; font-size: 11px; font-weight: bold; }
+.allocation-dark-box {
+    background-color: #4a235a !important; border-radius: 10px !important;
+    padding: 12px !important; text-align: center !important; color: #fff !important;
+    font-size: 16px !important; font-weight: bold !important; margin-bottom: 15px !important;
+}
+.groupboard-dark-box {
+    background-color: #1a5276 !important; border-radius: 10px !important;
+    padding: 12px !important; text-align: center !important; color: #fff !important;
+    font-size: 16px !important; font-weight: bold !important;
+    margin-bottom: 12px !important; margin-top: 15px !important;
+}
+.photo-upload-box {
+    background: linear-gradient(135deg, #eaf4fb, #d6eaf8);
+    border: 2px dashed #2980b9; border-radius: 16px;
+    padding: 30px; text-align: center; margin: 20px 0;
+}
+.avatar-ring {
+    border-radius: 50%; object-fit: cover;
+    border: 3px solid white;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    display: block; margin: auto;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# 🔑 செக்யூரிட்டி பாஸ்கோடு செட்டப்
-OFFICE_PASSWORD = "PCAS@2026"
+# =========================================================================
+# CONFIG
+# =========================================================================
+OFFICE_PASSWORD        = "PCAS@2026"
 ADMIN_EXTRACT_PASSWORD = "ADMIN@PCAS"
-ALLOWED_DOMAIN = "@pcas-cert.com"
+ALLOWED_DOMAIN         = "@pcas-cert.com"
+DB_PATH                = "pcas_office.db"
+HEARTBEAT_TIMEOUT      = 12
+QUICK_EMOJIS           = ["👍","❤️","😂","😮","🙏","🔥","✅","👏"]
 
-# 🌍 🇦🇪 துபாய் நேரத்தை கணக்கிடும் பங்க்ஷன்
+AVATAR_COLORS = [
+    "#e74c3c","#e67e22","#f39c12","#27ae60","#16a085",
+    "#2980b9","#8e44ad","#c0392b","#d35400","#1a5276",
+    "#117a65","#1d8348","#7d6608","#6e2f8f","#1f618d"
+]
+
 def get_dubai_time():
-    utc_now = datetime.datetime.utcnow()
-    dubai_offset = datetime.timedelta(hours=4)
-    dubai_now = utc_now + dubai_offset
-    return dubai_now
+    return datetime.datetime.utcnow() + datetime.timedelta(hours=4)
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "username" not in st.session_state:
-    st.session_state.username = ""
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
+def get_avatar_color(name):
+    idx = int(hashlib.md5(name.encode()).hexdigest(), 16) % len(AVATAR_COLORS)
+    return AVATAR_COLORS[idx]
 
-# 💾 🧹 குளோபல் மெமரி சிஸ்டம் (டேட்டாபேஸ் - கேச் தற்காலிகமாக நீக்கப்பட்டது!)
-@st.cache_resource
-def get_global_office_db():
-    # ஆரம்பத்தில் அனைத்து டெஸ்க்குகளும் காலியாக மட்டுமே இருக்கும்
-    return {i: {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"} for i in range(1, 23)}
+def get_initials(name):
+    parts = name.strip().split()
+    return (parts[0][0] + parts[1][0]).upper() if len(parts) >= 2 else parts[0][:2].upper()
 
-@st.cache_resource
-def get_global_message_db(): return []
-@st.cache_resource
-def get_global_notice_db(): return {"text": "Welcome to PCAS Virtual Office! Stay Connected.", "by": "Admin"}
-@st.cache_resource
-def get_global_attendance_log(): return []
-@st.cache_resource
-def get_global_heartbeat_pool(): return {}
+def get_avatar_html(username, size=50):
+    photo = get_profile_photo(username)
+    if photo:
+        return (f'<img src="data:image/jpeg;base64,{photo}" '
+                f'class="avatar-ring" width="{size}" height="{size}" '
+                f'style="width:{size}px;height:{size}px;">')
+    else:
+        color    = get_avatar_color(username)
+        initials = get_initials(username)
+        fs       = max(11, size // 3)
+        return (f'<div style="width:{size}px;height:{size}px;border-radius:50%;'
+                f'background:{color};color:#fff;display:flex;align-items:center;'
+                f'justify-content:center;font-size:{fs}px;font-weight:900;'
+                f'margin:auto;border:3px solid white;'
+                f'box-shadow:0 3px 10px rgba(0,0,0,0.2);">{initials}</div>')
 
-office_desks = get_global_office_db()
-all_messages = get_global_message_db()
-notice_board = get_global_notice_db()
-attendance_log = get_global_attendance_log()
-heartbeat_pool = get_global_heartbeat_pool()
+# =========================================================================
+# DATABASE
+# =========================================================================
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
 
-# 🔒 செக்யூர் இமெயில் லாகின் விண்டோ
+    c.execute("PRAGMA table_info(desks)")
+    cols = [r[1] for r in c.fetchall()]
+    if cols and "desk_id" not in cols:
+        c.execute("DROP TABLE IF EXISTS desks")
+
+    c.execute('''CREATE TABLE IF NOT EXISTS desks (
+        desk_id INTEGER PRIMARY KEY, name TEXT DEFAULT '🪑 Empty',
+        status TEXT DEFAULT 'Offline', checkin_time TEXT DEFAULT '-',
+        last_heartbeat REAL DEFAULT 0)''')
+    c.execute("SELECT COUNT(*) FROM desks")
+    if c.fetchone()[0] == 0:
+        for i in range(1, 23):
+            c.execute("INSERT INTO desks VALUES (?, '🪑 Empty','Offline','-',0)", (i,))
+    try:
+        c.execute("ALTER TABLE desks ADD COLUMN last_heartbeat REAL DEFAULT 0")
+    except: pass
+
+    c.execute('''CREATE TABLE IF NOT EXISTS attendance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        staff_name TEXT, date TEXT, desk TEXT,
+        checkin_time TEXT, checkout_time TEXT DEFAULT 'Active In Office', status TEXT)''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS group_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender TEXT, message TEXT, timestamp TEXT,
+        file_data TEXT, file_name TEXT, file_type TEXT)''')
+    for col in ["file_data","file_name","file_type"]:
+        try: c.execute(f"ALTER TABLE group_messages ADD COLUMN {col} TEXT")
+        except: pass
+
+    c.execute('''CREATE TABLE IF NOT EXISTS private_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender TEXT, receiver TEXT, message TEXT, timestamp TEXT,
+        is_read INTEGER DEFAULT 0,
+        file_data TEXT, file_name TEXT, file_type TEXT)''')
+    for col in ["file_data","file_name","file_type"]:
+        try: c.execute(f"ALTER TABLE private_messages ADD COLUMN {col} TEXT")
+        except: pass
+
+    c.execute('''CREATE TABLE IF NOT EXISTS notice (
+        id INTEGER PRIMARY KEY, text TEXT, posted_by TEXT)''')
+    c.execute("SELECT COUNT(*) FROM notice")
+    if c.fetchone()[0] == 0:
+        c.execute("INSERT INTO notice VALUES (1,'Welcome to PCAS Virtual Office v2.0!','Admin')")
+
+    # ✅ Profile photos table
+    c.execute('''CREATE TABLE IF NOT EXISTS profiles (
+        username TEXT PRIMARY KEY, photo_data TEXT)''')
+
+    conn.commit(); conn.close()
+
+init_db()
+
+# =========================================================================
+# DB HELPERS
+# =========================================================================
+def get_db(): return sqlite3.connect(DB_PATH)
+
+def get_all_desks():
+    conn = get_db()
+    df = pd.read_sql("SELECT * FROM desks ORDER BY desk_id", conn)
+    conn.close(); return df
+
+def update_desk(desk_id, name, status, checkin_time):
+    conn = get_db()
+    conn.execute("UPDATE desks SET name=?,status=?,checkin_time=?,last_heartbeat=? WHERE desk_id=?",
+                 (name, status, checkin_time, time.time(), desk_id))
+    conn.commit(); conn.close()
+
+def clear_desk(desk_id):
+    conn = get_db()
+    conn.execute("UPDATE desks SET name='🪑 Empty',status='Offline',checkin_time='-',last_heartbeat=0 WHERE desk_id=?", (desk_id,))
+    conn.commit(); conn.close()
+
+def clear_user_desk(name):
+    conn = get_db()
+    conn.execute("UPDATE desks SET name='🪑 Empty',status='Offline',checkin_time='-',last_heartbeat=0 WHERE name=?", (name,))
+    conn.commit(); conn.close()
+
+def update_heartbeat(name):
+    conn = get_db()
+    conn.execute("UPDATE desks SET last_heartbeat=? WHERE name=?", (time.time(), name))
+    conn.commit(); conn.close()
+
+def cleanup_disconnected():
+    timeout_ts = time.time() - HEARTBEAT_TIMEOUT
+    conn = get_db()
+    cur = conn.execute("SELECT name FROM desks WHERE name!='🪑 Empty' AND last_heartbeat<? AND last_heartbeat!=0", (timeout_ts,))
+    for (user,) in cur.fetchall():
+        conn.execute("UPDATE attendance SET checkout_time=? WHERE staff_name=? AND checkout_time='Active In Office'",
+                     (get_dubai_time().strftime("%I:%M %p")+" (Disconnected)", user))
+        conn.execute("UPDATE desks SET name='🪑 Empty',status='Offline',checkin_time='-',last_heartbeat=0 WHERE name=?", (user,))
+    conn.commit(); conn.close()
+
+def add_attendance(staff_name, desk, checkin_time, status):
+    conn = get_db()
+    conn.execute("INSERT INTO attendance (staff_name,date,desk,checkin_time,status) VALUES (?,?,?,?,?)",
+                 (staff_name, str(get_dubai_time().date()), desk, checkin_time, status))
+    conn.commit(); conn.close()
+
+def checkout_attendance(staff_name, checkout_time):
+    conn = get_db()
+    conn.execute("UPDATE attendance SET checkout_time=? WHERE staff_name=? AND checkout_time='Active In Office'",
+                 (checkout_time, staff_name))
+    conn.commit(); conn.close()
+
+def get_attendance_df():
+    conn = get_db()
+    df = pd.read_sql("""SELECT staff_name as 'Staff Name', date as 'Date', desk as 'Desk',
+        checkin_time as 'Check-In Time', checkout_time as 'Check-Out Time', status as 'Status'
+        FROM attendance ORDER BY id DESC""", conn)
+    conn.close(); return df
+
+# ✅ Profile photo helpers
+def save_profile_photo(username, photo_bytes):
+    conn = get_db()
+    encoded = base64.b64encode(photo_bytes).decode("utf-8")
+    conn.execute("INSERT OR REPLACE INTO profiles (username, photo_data) VALUES (?,?)",
+                 (username, encoded))
+    conn.commit(); conn.close()
+
+def get_profile_photo(username):
+    conn = get_db()
+    cur = conn.execute("SELECT photo_data FROM profiles WHERE username=?", (username,))
+    row = cur.fetchone(); conn.close()
+    return row[0] if row else None
+
+def file_to_base64(file_bytes):
+    return base64.b64encode(file_bytes).decode("utf-8")
+
+def render_file(file_data, file_name, file_type):
+    if file_data and file_name:
+        raw = base64.b64decode(file_data)
+        if file_type and file_type.startswith("image"):
+            st.image(raw, width=200, caption=file_name)
+        else:
+            st.download_button(f"📎 {file_name}", data=raw, file_name=file_name,
+                               key=f"dl_{file_name}_{file_data[:6]}")
+
+def render_chat_messages(msgs, my_name, is_group=False):
+    for row in msgs:
+        sender = row[0]
+        if is_group:
+            message   = row[1] if row[1] else ""
+            ts        = row[2] if row[2] else ""
+            file_data = row[3] if len(row) > 3 else None
+            file_name = row[4] if len(row) > 4 else None
+            file_type = row[5] if len(row) > 5 else None
+        else:
+            message   = row[2] if row[2] else ""
+            ts        = row[3] if row[3] else ""
+            file_data = row[4] if len(row) > 4 else None
+            file_name = row[5] if len(row) > 5 else None
+            file_type = row[6] if len(row) > 6 else None
+
+        if sender == my_name:
+            st.markdown(
+                f'<div class="chat-bubble-me">{message}'
+                f'<div class="chat-time" style="text-align:right;">🕒 {ts}</div>'
+                f'</div>', unsafe_allow_html=True)
+        else:
+            avatar = get_avatar_html(sender, size=34)
+            st.markdown(
+                f'<div style="display:flex;align-items:flex-start;gap:8px;margin:4px 10% 4px 0;">'
+                f'<div style="flex-shrink:0;margin-top:2px;">{avatar}</div>'
+                f'<div class="chat-bubble-other">'
+                f'<div class="chat-sender">{sender}</div>{message}'
+                f'<div class="chat-time">🕒 {ts}</div>'
+                f'</div></div>', unsafe_allow_html=True)
+        if file_data:
+            render_file(file_data, file_name, file_type)
+
+def send_group_message(sender, message, file_data=None, file_name=None, file_type=None):
+    conn = get_db()
+    conn.execute("INSERT INTO group_messages (sender,message,timestamp,file_data,file_name,file_type) VALUES (?,?,?,?,?,?)",
+                 (sender, message or "", get_dubai_time().strftime("%H:%M"), file_data, file_name, file_type))
+    conn.commit(); conn.close()
+
+def get_group_messages(limit=50):
+    conn = get_db()
+    cur = conn.execute("SELECT sender,message,timestamp,file_data,file_name,file_type FROM group_messages ORDER BY id DESC LIMIT ?", (limit,))
+    msgs = cur.fetchall(); conn.close(); return list(reversed(msgs))
+
+def send_private_message(sender, receiver, message, file_data=None, file_name=None, file_type=None):
+    conn = get_db()
+    conn.execute("INSERT INTO private_messages (sender,receiver,message,timestamp,file_data,file_name,file_type) VALUES (?,?,?,?,?,?,?)",
+                 (sender, receiver, message or "", get_dubai_time().strftime("%H:%M"), file_data, file_name, file_type))
+    conn.commit(); conn.close()
+
+def get_private_messages(user1, user2, limit=50):
+    conn = get_db()
+    cur = conn.execute("""SELECT sender,receiver,message,timestamp,file_data,file_name,file_type
+        FROM private_messages WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?)
+        ORDER BY id DESC LIMIT ?""", (user1,user2,user2,user1,limit))
+    msgs = cur.fetchall(); conn.close(); return list(reversed(msgs))
+
+def get_unread_count(receiver, sender):
+    conn = get_db()
+    cur = conn.execute("SELECT COUNT(*) FROM private_messages WHERE receiver=? AND sender=? AND is_read=0", (receiver,sender))
+    count = cur.fetchone()[0]; conn.close(); return count
+
+def mark_as_read(receiver, sender):
+    conn = get_db()
+    conn.execute("UPDATE private_messages SET is_read=1 WHERE receiver=? AND sender=?", (receiver,sender))
+    conn.commit(); conn.close()
+
+def get_notice():
+    conn = get_db()
+    cur = conn.execute("SELECT text,posted_by FROM notice WHERE id=1")
+    row = cur.fetchone(); conn.close(); return {"text": row[0], "by": row[1]}
+
+def update_notice(text, posted_by):
+    conn = get_db()
+    conn.execute("UPDATE notice SET text=?,posted_by=? WHERE id=1", (text,posted_by))
+    conn.commit(); conn.close()
+
+# =========================================================================
+# SESSION STATE
+# =========================================================================
+if "logged_in"         not in st.session_state: st.session_state.logged_in         = False
+if "username"          not in st.session_state: st.session_state.username          = ""
+if "user_email"        not in st.session_state: st.session_state.user_email        = ""
+if "chat_with"         not in st.session_state: st.session_state.chat_with         = None
+if "show_photo_panel"  not in st.session_state: st.session_state.show_photo_panel  = False
+if "setup_photo"       not in st.session_state: st.session_state.setup_photo       = False
+
+# =========================================================================
+# LOGIN PAGE
+# =========================================================================
 if not st.session_state.logged_in:
     st.write("")
-    st.write("")
-    col_l1, col_l2, col_l3 = st.columns([1, 1.2, 1])
+    _, col_l2, _ = st.columns([1, 1.2, 1])
     with col_l2:
-        with st.form(key="login_form"):
+        with st.form("login_form"):
             st.image("pcas_logo.png", width=120)
-            st.markdown('<h3 style="color: #1a365d; font-family: sans-serif; margin-top: -10px;">PCAS Secure Login Gate</h3>', unsafe_allow_html=True)
-            
-            input_email = st.text_input("Enter Office Email ID:", placeholder="username@pcas-cert.com").strip().lower()
-            input_pass = st.text_input("Enter Office Secret Passcode:", type="password", placeholder="••••••••")
-            
-            login_btn = st.form_submit_button("Verify & Enter Office 🚀", use_container_width=True)
-            
-            if login_btn:
-                if input_email == "":
-                    st.error("Please enter your office Email ID!")
+            st.markdown('<h3 style="color:#1a365d;">PCAS Secure Login Gate</h3>', unsafe_allow_html=True)
+            input_email = st.text_input("Office Email:", placeholder="username@pcas-cert.com").strip().lower()
+            input_pass  = st.text_input("Passcode:", type="password", placeholder="••••••••")
+            if st.form_submit_button("Verify & Enter Office 🚀", use_container_width=True):
+                if not input_email:
+                    st.error("Enter your email!")
                 elif ALLOWED_DOMAIN not in input_email:
-                    st.error("❌ Invalid Email! Please use official @pcas-cert.com email.")
+                    st.error("❌ Use @pcas-cert.com email only!")
                 elif input_pass != OFFICE_PASSWORD:
-                    st.error("❌ Incorrect Office Passcode! Access Denied.")
+                    st.error("❌ Wrong passcode!")
                 else:
-                    extracted_username = input_email.split("@")[0].replace(".", " ")
-                    
-                    # 🚀 🧹 மேஜிக் கிளீனர்: புதிய ஆள் உள்ளே நுழையும் போது பழைய குப்பைகள் அனைத்தையும் மொத்தமாக துடைக்கிறது!
-                    for i in range(1, 23):
-                        office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
-                    heartbeat_pool.clear()
-                    
-                    st.session_state.logged_in = True
-                    st.session_state.username = extracted_username
+                    uname = input_email.split("@")[0].replace("."," ").title()
+                    st.session_state.logged_in  = True
+                    st.session_state.username   = uname
                     st.session_state.user_email = input_email
-                    st.success(f"Access Granted! Welcome {extracted_username}.")
+                    # ✅ First login → show photo setup
+                    st.session_state.setup_photo = not bool(get_profile_photo(uname))
                     st.rerun()
     st.stop()
 
 my_name = st.session_state.username
 
-# ⚡ 🎯 ஹார்ட்-பீட் ஆக்டிவ் ஸ்டேட்டஸ் மேனேஜர்
-heartbeat_pool[my_name] = time.time()
+# =========================================================================
+# ✅ PHOTO SETUP SCREEN (First time login)
+# =========================================================================
+if st.session_state.setup_photo:
+    st.markdown("---")
+    _, mid, _ = st.columns([0.8, 1.4, 0.8])
+    with mid:
+        st.markdown(
+            '<div class="photo-upload-box">'
+            '<div style="font-size:70px;margin-bottom:10px;">📸</div>'
+            '<h2 style="color:#1a365d;">Set Your Profile Photo</h2>'
+            '<p style="color:#555;font-size:15px;">உங்க photo desk-ல circle-ஆ தெரியும்<br>'
+            '(WhatsApp / Teams போல!)</p>'
+            '</div>', unsafe_allow_html=True)
 
-# 🧹 ஆட்டோ கிளீனப் சிஸ்டம்
-now_ts = time.time()
-disconnected_users = []
-for user, last_active in list(heartbeat_pool.items()):
-    if (now_ts - last_active) > 8:
-        disconnected_users.append(user)
-        del heartbeat_pool[user]
+        st.markdown(
+            f'<div style="text-align:center;margin:20px 0;">'
+            f'{get_avatar_html(my_name, size=100)}'
+            f'<p style="color:#888;font-size:12px;margin-top:8px;">Current Avatar</p>'
+            f'</div>', unsafe_allow_html=True)
 
-for d_user in disconnected_users:
-    c_out_str = get_dubai_time().strftime("%I:%M %p")
-    for row in reversed(attendance_log):
-        if row["Staff Name"] == d_user and row["Check-Out Time"] == "Active In Office":
-            row["Check-Out Time"] = f"{c_out_str} (Closed App)"
-            break
-    for i, val in list(office_desks.items()):
-        if val["name"] == d_user:
-            office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+        uploaded = st.file_uploader(
+            "📁 Choose your photo (PNG / JPG):",
+            type=["png","jpg","jpeg"],
+            key="setup_photo_upload")
 
-if "chat_with_user" not in st.session_state: st.session_state.chat_with_user = None
-COMMON_GROUP_MEET_URL = "https://meet.google.com/new"
+        if uploaded:
+            col_prev, col_orig = st.columns(2)
+            with col_prev:
+                st.markdown("**Preview:**")
+                st.image(uploaded, width=130)
+            uploaded.seek(0)
 
-# 🏛️ லோகோ + பெயர் செட்டப்
+            st.markdown("<br>", unsafe_allow_html=True)
+            s1, s2 = st.columns(2)
+            with s1:
+                if st.button("✅ Save & Enter Office", use_container_width=True, type="primary"):
+                    uploaded.seek(0)
+                    save_profile_photo(my_name, uploaded.read())
+                    st.session_state.setup_photo = False
+                    st.success("✅ Photo saved!"); time.sleep(0.5); st.rerun()
+            with s2:
+                if st.button("⏭️ Skip for now", use_container_width=True):
+                    st.session_state.setup_photo = False
+                    st.rerun()
+        else:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("⏭️ Skip, Enter Office Without Photo", use_container_width=True):
+                st.session_state.setup_photo = False
+                st.rerun()
+
+        st.markdown(
+            '<p style="text-align:center;color:#999;font-size:11px;margin-top:20px;">'
+            'Later-ல change பண்ணணும்னா → Header-ல 📸 Photo button click பண்ணுங்க</p>',
+            unsafe_allow_html=True)
+    st.stop()
+
+# =========================================================================
+# MAIN APP
+# =========================================================================
+update_heartbeat(my_name)
+cleanup_disconnected()
+
+# HEADER
 st.markdown('<div class="header-mild-box">', unsafe_allow_html=True)
-col_logo_native, col_title_native = st.columns([0.08, 0.92])
-with col_logo_native: st.image("pcas_logo.png", width=60)
-with col_title_native: st.markdown('<h1 class="main-title">PCAS VIRTUAL OFFICE</h1>', unsafe_allow_html=True)
+cl, ct = st.columns([0.08, 0.92])
+with cl: st.image("pcas_logo.png", width=60)
+with ct: st.markdown('<h1 class="main-title">PCAS VIRTUAL OFFICE v2.0</h1>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# 🏢 மெயின் லேஅவுட் தொடக்கம்
-current_dubai_datetime = get_dubai_time()
-col_top1, col_top2 = st.columns([2, 1])
-with col_top1: st.write(f"📅 Today: {current_dubai_datetime.strftime('%B %d, %Y')} | 🕒 Dubai Live Time: {current_dubai_datetime.strftime('%I:%M %p')}")
-with col_top2:
-    if st.button("🚪 Logout From Office", use_container_width=True):
-        if my_name in heartbeat_pool: del heartbeat_pool[my_name]
-        checkout_time_str = get_dubai_time().strftime("%I:%M %p")
-        for row in reversed(attendance_log):
-            if row["Staff Name"] == my_name and row["Check-Out Time"] == "Active In Office":
-                row["Check-Out Time"] = checkout_time_str
-                break
-        for i, val in list(office_desks.items()):
-            if val["name"] == my_name: office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
+now_dt = get_dubai_time()
+h1, h2, h3, h4 = st.columns([2, 1, 0.8, 0.8])
+with h1:
+    st.write(f"📅 {now_dt.strftime('%B %d, %Y')} | 🕒 Dubai: {now_dt.strftime('%I:%M %p')}")
+with h2:
+    desks_df     = get_all_desks()
+    hdr_users    = desks_df[desks_df["name"] != "🪑 Empty"]["name"].tolist()
+    total_unread = sum(get_unread_count(my_name, u) for u in hdr_users if u != my_name)
+    if total_unread > 0:
+        st.markdown(f'📬 **Inbox** <span class="unread-badge">{total_unread}</span>', unsafe_allow_html=True)
+with h3:
+    # ✅ My avatar + photo change button
+    my_av = get_avatar_html(my_name, size=32)
+    if st.button("📸 My Photo", use_container_width=True):
+        st.session_state.show_photo_panel = not st.session_state.show_photo_panel
+with h4:
+    if st.button("🚪 Logout", use_container_width=True):
+        checkout_attendance(my_name, get_dubai_time().strftime("%I:%M %p"))
+        clear_user_desk(my_name)
         st.session_state.logged_in = False
-        st.session_state.username = ""
-        st.session_state.user_email = ""
+        st.session_state.username  = ""
         st.rerun()
 
-st.markdown("---")
-st.markdown(f'<div class="notice-box">📢 <b>OFFICE NOTICE BOARD:</b> "{notice_board["text"]}" <span style="float:right; color:#666; font-size:11px;">- Posted by {notice_board["by"]}</span></div>', unsafe_allow_html=True)
+# ✅ Photo change panel (dropdown style)
+if st.session_state.show_photo_panel:
+    with st.container():
+        st.markdown("---")
+        _, pm, _ = st.columns([1, 1.2, 1])
+        with pm:
+            st.markdown(
+                '<div style="background:#eaf4fb;border:1px solid #aed6f1;'
+                'border-radius:12px;padding:20px;text-align:center;">',
+                unsafe_allow_html=True)
+            st.markdown("### 📸 Profile Photo")
 
-# 📊 லைவ் ஓவர்வியூ டேஷ்போர்டு
-active_staff = []; online_count = 0; busy_count = 0; break_count = 0; wfh_count = 0
-for idx, data in office_desks.items():
-    if data["name"] != "🪑 Empty":
-        active_staff.append(data["name"])
-        if "Online" in data["status"]: online_count += 1
-        elif "Busy" in data["status"]: busy_count += 1
-        elif "Break" in data["status"]: break_count += 1
-        elif "WFH" in data["status"]: wfh_count += 1
+            # Current photo
+            st.markdown(
+                f'<div style="margin:12px auto;">{get_avatar_html(my_name, size=90)}</div>',
+                unsafe_allow_html=True)
+            st.markdown(f'<p style="color:#555;font-weight:bold;">{my_name}</p>',
+                        unsafe_allow_html=True)
 
-st.markdown("### 📊 Live Management Overview")
-m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
-m_col1.markdown(f'<div class="metric-card"><b style="color:#2ecc71; font-size:12px;">🟢 Online Staff</b><h4>{online_count}</h4></div>', unsafe_allow_html=True)
-m_col2.markdown(f'<div class="metric-card"><b style="color:#e74c3c; font-size:12px;">🔴 Busy / Meeting</b><h4>{busy_count}</h4></div>', unsafe_allow_html=True)
-m_col3.markdown(f'<div class="metric-card"><b style="color:#f1c40f; font-size:12px;">🟡 On Break</b><h4>{break_count}</h4></div>', unsafe_allow_html=True)
-m_col4.markdown(f'<div class="metric-card"><b style="color:#3498db; font-size:12px;">🔵 WFH Staff</b><h4>{wfh_count}</h4></div>', unsafe_allow_html=True)
-m_col5.markdown(f'<div class="metric-card"><b style="color:#1a365d; font-size:12px;">👥 Total Active</b><h4>{len(active_staff)}</h4></div>', unsafe_allow_html=True)
+            new_photo = st.file_uploader(
+                "📁 Choose new photo:", type=["png","jpg","jpeg"], key="change_ph")
 
-st.write("")
-with st.expander("🛠️ Manager & Admin Control Panel (Notice & Attendance Report)", expanded=False):
-    col_adm1, col_adm2 = st.columns([1.5, 1.5])
-    with col_adm1:
-        st.markdown("##### 📢 Broadcast Notice")
-        new_notice = st.text_input("Type new announcement here:", value=notice_board["text"])
-        if st.button("📢 Broadcast Notice to Everyone"):
-            notice_board["text"] = new_notice
-            notice_board["by"] = my_name
-            st.success("Notice updated!")
-            st.rerun()
-            
-    with col_adm2:
-        st.markdown("##### 📥 Monthly Attendance Report Extractor")
-        st.write("Click below to download the complete attendance log of this month as a standard CSV spreadsheet file.")
-        
-        admin_pass_input = st.text_input(
-            "Verification Required: Enter Admin Password to Download", 
-            type="password", 
-            placeholder="Enter admin code...", 
-            key="local_admin_password_field"
-        )
-        
-        if admin_pass_input == ADMIN_EXTRACT_PASSWORD:
-            st.success("🔒 Access Granted! Download button unlocked.")
-            
-            st.markdown("---")
-            st.markdown("<b style='color:#c0392b;'>⚠️ Master Reset Panel</b>", unsafe_allow_html=True)
-            if st.button("🧹 Force Reset & Clear All Frozen Desks", use_container_width=True):
-                for i in range(1, 23):
-                    if office_desks[i]["name"] != my_name:
-                        office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
-                st.success("All old duplicate/frozen desks cleared successfully!")
-                st.rerun()
-            st.markdown("---")
-            
-            if len(attendance_log) > 0:
-                df_report = pd.DataFrame(attendance_log)
-                csv_data = df_report.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Download Attendance Report (.csv)",
-                    data=csv_data,
-                    file_name=f"PCAS_Attendance_Report_{get_dubai_time().strftime('%B_%Y')}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    key="local_download_button_trigger"
-                )
-            else:
-                st.warning("No attendance records found yet!")
-        elif admin_pass_input != "":
-            st.error("❌ Invalid Admin Password! Document locked.")
-
-# ----------------------------------------------------
-# 🎵 Music Lounge
-# ----------------------------------------------------
-st.markdown("---")
-st.markdown("### 🎵 PCAS Music Lounge")
-st.write("Feeling bored while working? Turn on some relaxing background lofi music and enjoy your workflow! 🎧")
-
-music_choice = st.radio("Choose Station:", ["Off 🎧", "Lofi Work Beats 🎹", "Instrumental Ambient 🌌"], horizontal=True)
-if music_choice == "Lofi Work Beats 🎹":
-    st.audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", loop=True)
-    st.caption("Now Playing: Calm Lofi Focus Beats...")
-elif music_choice == "Instrumental Ambient 🌌":
-    st.audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", loop=True)
-    st.caption("Now Playing: Deep Ambient Concentration Audio...")
-
-st.markdown("---")
-col_control, col_floor_plan = st.columns([1.1, 1.9])
-
-# இடது பக்கம் கண்ட்ரோல் & சாட் விண்டோ
-with col_control:
-    st.markdown('<div class="allocation-dark-box">👤 STAFF LOGIN & DESK ALLOCATION</div>', unsafe_allow_html=True)
-    st.info(f"Logged in as: **{st.session_state.user_email}**") 
-
-    desk_options = []
-    for i in range(1, 23):
-        if 1 <= i <= 3: dept = "Manager"
-        elif 4 <= i <= 7: dept = "Chemical Team"
-        elif 8 <= i <= 9: dept = "Mechanical Team"
-        elif 10 <= i <= 14: dept = "Electrical Team"
-        elif 15 <= i <= 17: dept = "Account Manager"
-        elif 18 <= i <= 20: dept = "Sales Team"
-        else: dept = "Accountant"
-
-        if office_desks[i]["name"] == "🪑 Empty" or office_desks[i]["name"] == my_name:
-            desk_options.append(f"Desk {i} ({dept})")
-
-    selected_desk_str = st.selectbox("Select Your Department Desk:", desk_options)
-    desk_num = int(selected_desk_str.split(" ")[1])
-    my_status = st.radio("Your Status:", ["Online 🟢", "Busy/Meeting 🔴", "On Break 🟡", "WFH 🔵"], horizontal=True)
-
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("🚀 Occupy Desk & Check-In", use_container_width=True):
-            for i, val in list(office_desks.items()):
-                if val["name"] == my_name:
-                    office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
-            
-            checkin_time_str = get_dubai_time().strftime("%I:%M %p")
-            office_desks[desk_num] = {"name": my_name, "status": my_status, "checkin_time": checkin_time_str}
-            
-            clean_status = my_status.replace("🟢","").replace("🔴","").replace("🟡","").replace("🔵","").strip()
-            
-            attendance_log.append({
-                "Staff Name": my_name,
-                "Date": str(get_dubai_time().date()),
-                "Desk": f"Desk {desk_num}",
-                "Check-In Time": checkin_time_str,
-                "Check-Out Time": "Active In Office",
-                "Status": clean_status
-            })
-            st.success(f"Checked-In successfully!")
-            st.rerun()
-            
-    with col_btn2:
-        if st.button("🚪 Leave Desk", use_container_width=True):
-            checkout_time_str = get_dubai_time().strftime("%I:%M %p")
-            for row in reversed(attendance_log):
-                if row["Staff Name"] == my_name and row["Check-Out Time"] == "Active In Office":
-                    row["Check-Out Time"] = checkout_time_str
-                    break
-            for i, val in list(office_desks.items()):
-                if val["name"] == my_name: 
-                    office_desks[i] = {"name": "🪑 Empty", "status": "Offline", "checkin_time": "-"}
-            st.rerun()
-
-    st.markdown("---")
-    
-    # 📢 குரூப் சாட் போர்டு
-    st.markdown('<div class="group-chat-container"><div class="group-dark-box">📢 GROUP COMMON BOARD</div>', unsafe_allow_html=True)
-    with st.form(key="group_chat_form", clear_on_submit=True):
-        group_input = st.text_input("Message to everyone:")
-        uploaded_file = st.file_uploader("Share Photo/File 📎", type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx"], key="group_file")
-        submit_group = st.form_submit_button("Broadcast to Office 🌍", use_container_width=True)
-        if submit_group and (group_input or uploaded_file):
-            f_data = uploaded_file.read() if uploaded_file else None
-            f_name = uploaded_file.name if uploaded_file else None
-            all_messages.append({"sender": my_name, "receiver": "Everyone", "text": group_input, "file": f_data, "file_name": f_name, "time": get_dubai_time().strftime("%H:%M")})
-            st.rerun()
-    with st.expander("📜 View Group Logs", expanded=True):
-        for msg in reversed(all_messages):
-            if msg["receiver"] == "Everyone":
-                st.markdown(f"`{msg['time']}` **{msg['sender']}**: {msg['text'] if msg['text'] else ''}")
-                if msg.get("file") is not None:
-                    if msg["file_name"].lower().endswith(('.png', '.jpg', '.jpeg')): st.image(msg["file"], width=200)
-                    else: st.download_button(f"📥 Download {msg['file_name']}", data=msg["file"], file_name=msg["file_name"], key=f"g_dl_{msg['time']}_{msg['sender']}")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# வலது பக்கம் டிபார்ட்மென்ட் லேஅவுட் (Floor Plan)
-with col_floor_plan:
-    st.subheader("📢 PCAS Collaboration Hub")
-    st.link_button("🚨 JOIN OFFICE GROUP CALL (ALL ONLINE STAFF)", COMMON_GROUP_MEET_URL, type="primary", use_container_width=True)
-    st.markdown("---")
-
-    def draw_desks(title, bg_class, start_idx, end_idx):
-        st.markdown(f'<div class="dept-box {bg_class}">{title}</div>', unsafe_allow_html=True)
-        cols = st.columns(end_idx - start_idx + 1)
-        for idx, d_num in enumerate(range(start_idx, end_idx + 1)):
-            d_data = office_desks[d_num]
-            with cols[idx]:
-                if d_data["name"] == "🪑 Empty":
-                    st.markdown(f'<div class="status-offline"><div class="desk-title">Desk {d_num}</div>🪑 Empty</div>', unsafe_allow_html=True)
-                else:
-                    if "Online" in d_data["status"]: style_class = "status-online"
-                    elif "Busy" in d_data["status"]: style_class = "status-busy"
-                    elif "Break" in d_data["status"]: style_class = "status-break"
-                    else: style_class = "status-wfh"
-
-                    st.markdown(f'<div class="{style_class}"><div class="{style_class}"><div class="desk-title">Desk {d_num}</div>👤 <b>{d_data["name"]}</b><br>{d_data["status"]}</div>', unsafe_allow_html=True)
-                    st.link_button("🎛️ Call", "https://meet.google.com/new", key=f"lnk_{d_num}")
-                    if st.button("💬 Chat", key=f"cb_{d_num}"):
-                        st.session_state.chat_with_user = d_data["name"]
+            if new_photo:
+                st.markdown("**Preview:**")
+                st.image(new_photo, width=110)
+                new_photo.seek(0)
+                pp1, pp2 = st.columns(2)
+                with pp1:
+                    if st.button("💾 Update Photo", use_container_width=True, type="primary"):
+                        new_photo.seek(0)
+                        save_profile_photo(my_name, new_photo.read())
+                        st.session_state.show_photo_panel = False
+                        st.success("✅ Photo updated!"); time.sleep(0.4); st.rerun()
+                with pp2:
+                    if st.button("❌ Cancel", use_container_width=True):
+                        st.session_state.show_photo_panel = False
                         st.rerun()
-        st.write("")
+            else:
+                if st.button("❌ Close", use_container_width=True):
+                    st.session_state.show_photo_panel = False
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("---")
 
-    draw_desks("💼 MANAGER ROOM (Desks 1-3)", "bg-manager", 1, 3)
-    draw_desks("🧪 CHEMICAL TEAM (Desks 4-7)", "bg-chemical", 4, 7)
-    draw_desks("🔧 MECHANICAL TEAM (Desks 8-9)", "bg-mechanical", 8, 9)
-    draw_desks("⚡ ELECTRICAL TEAM (Desks 10-14)", "bg-electrical", 10, 14)
-    draw_desks("📊 ACCOUNT MANAGER (Desks 15-17)", "bg-acc-manager", 15, 17)
-    draw_desks("📈 SALES TEAM (Desks 18-20)", "bg-sales", 18, 20)
-    draw_desks("🧮 ACCOUNTANT (Desks 21-22)", "bg-accountant", 21, 22)
+notice = get_notice()
+st.markdown(
+    f'<div class="notice-box">📢 <b>NOTICE:</b> "{notice["text"]}" '
+    f'<span style="float:right;color:#666;font-size:11px;">— {notice["by"]}</span></div>',
+    unsafe_allow_html=True)
+
+# STATS
+desks_df = get_all_desks()
+online_c = len(desks_df[desks_df["status"].str.contains("Online", na=False)])
+busy_c   = len(desks_df[desks_df["status"].str.contains("Busy",   na=False)])
+break_c  = len(desks_df[desks_df["status"].str.contains("Break",  na=False)])
+wfh_c    = len(desks_df[desks_df["status"].str.contains("WFH",    na=False)])
+active_c = len(desks_df[desks_df["name"] != "🪑 Empty"])
+
+m1,m2,m3,m4,m5 = st.columns(5)
+m1.markdown(f'<div class="metric-card"><b style="color:#2ecc71;">🟢 Online</b><h3>{online_c}</h3></div>',  unsafe_allow_html=True)
+m2.markdown(f'<div class="metric-card"><b style="color:#e74c3c;">🔴 Busy</b><h3>{busy_c}</h3></div>',     unsafe_allow_html=True)
+m3.markdown(f'<div class="metric-card"><b style="color:#f1c40f;">🟡 Break</b><h3>{break_c}</h3></div>',   unsafe_allow_html=True)
+m4.markdown(f'<div class="metric-card"><b style="color:#3498db;">🔵 WFH</b><h3>{wfh_c}</h3></div>',      unsafe_allow_html=True)
+m5.markdown(f'<div class="metric-card"><b style="color:#1a365d;">👥 Active</b><h3>{active_c}</h3></div>', unsafe_allow_html=True)
+
+st.markdown("---")
+
+# =========================================================================
+# TABS
+# =========================================================================
+tab_office, tab_chat, tab_admin = st.tabs(["🏢 Office Floor","💬 Messages","🛠️ Admin"])
+
+# ─── TAB 1 ───────────────────────────────────────────────────────────────
+with tab_office:
+    col_ctrl, col_floor = st.columns([1.1, 1.9])
+
+    with col_ctrl:
+        st.markdown('<div class="allocation-dark-box">👤 DESK ALLOCATION</div>', unsafe_allow_html=True)
+
+        # My avatar in sidebar
+        st.markdown(
+            f'<div style="text-align:center;margin-bottom:10px;">'
+            f'{get_avatar_html(my_name, size=65)}'
+            f'<div style="font-weight:bold;font-size:14px;margin-top:6px;">{my_name}</div>'
+            f'</div>', unsafe_allow_html=True)
+
+        st.info(f"**{st.session_state.user_email}**")
+
+        desk_options = []
+        for _, row in desks_df.iterrows():
+            i = int(row["desk_id"])
+            dept = ("Manager" if 1<=i<=3 else "Chemical" if 4<=i<=7 else
+                    "Mechanical" if 8<=i<=9 else "Electrical" if 10<=i<=14 else
+                    "Acct Manager" if 15<=i<=17 else "Sales" if 18<=i<=20 else "Accountant")
+            if row["name"] == "🪑 Empty" or row["name"] == my_name:
+                desk_options.append(f"Desk {i} ({dept})")
+
+        sel_desk  = st.selectbox("Select Desk:", desk_options)
+        desk_num  = int(sel_desk.split(" ")[1])
+        my_status = st.radio("Status:", ["Online 🟢","Busy/Meeting 🔴","On Break 🟡","WFH 🔵"], horizontal=True)
+
+        b1, b2 = st.columns(2)
+        with b1:
+            if st.button("🚀 Check-In", use_container_width=True):
+                clear_user_desk(my_name)
+                ct_str = get_dubai_time().strftime("%I:%M %p")
+                update_desk(desk_num, my_name, my_status, ct_str)
+                cs = my_status.replace("🟢","").replace("🔴","").replace("🟡","").replace("🔵","").strip()
+                add_attendance(my_name, f"Desk {desk_num}", ct_str, cs)
+                st.success("Checked In! ✅"); st.rerun()
+        with b2:
+            if st.button("🚪 Leave", use_container_width=True):
+                checkout_attendance(my_name, get_dubai_time().strftime("%I:%M %p"))
+                clear_user_desk(my_name); st.rerun()
+
+        st.markdown("---")
+        st.markdown('<div class="groupboard-dark-box">📢 GROUP BOARD</div>', unsafe_allow_html=True)
+
+        st.markdown("**😊 Quick Emoji:**")
+        e_cols = st.columns(len(QUICK_EMOJIS))
+        for i, emoji in enumerate(QUICK_EMOJIS):
+            with e_cols[i]:
+                if st.button(emoji, key=f"gemoji_{i}", use_container_width=True):
+                    send_group_message(my_name, emoji)
+                    st.rerun()
+
+        with st.form("group_form", clear_on_submit=True):
+            g_msg  = st.text_input("✏️ Message everyone:", placeholder="Type a message...")
+            g_file = st.file_uploader("📎 Attach Image / Doc",
+                                       type=["png","jpg","jpeg","pdf","txt","xlsx","docx"],
+                                       key="gfile")
+            if st.form_submit_button("Send 🌍", use_container_width=True):
+                if g_msg or g_file:
+                    fd=fn=ft=None
+                    if g_file:
+                        fd=file_to_base64(g_file.read()); fn=g_file.name; ft=g_file.type
+                    send_group_message(my_name, g_msg, fd, fn, ft)
+                    st.rerun()
+
+        with st.expander("📜 Group Chat", expanded=True):
+            render_chat_messages(get_group_messages(30), my_name, is_group=True)
+
+    with col_floor:
+        st.subheader("🏢 PCAS Office Floor")
+        st.link_button("🚨 JOIN GROUP CALL", "https://meet.google.com/new",
+                        type="primary", use_container_width=True)
+        st.markdown("---")
+
+        desks_df2 = get_all_desks()
+        desk_map  = {int(r["desk_id"]): r for _, r in desks_df2.iterrows()}
+
+        def draw_desks(title, bg, s, e):
+            st.markdown(f'<div class="dept-box {bg}">{title}</div>', unsafe_allow_html=True)
+            cols = st.columns(e - s + 1)
+            for idx, d in enumerate(range(s, e+1)):
+                dd = desk_map[d]
+                with cols[idx]:
+                    if dd["name"] == "🪑 Empty":
+                        st.markdown(
+                            f'<div class="status-offline" style="text-align:center;min-height:110px;">'
+                            f'<div class="desk-title">Desk {d}</div>'
+                            f'<div style="font-size:32px;margin:8px 0;">🪑</div>'
+                            f'<span style="font-size:10px;color:#aaa;">Empty</span>'
+                            f'</div>', unsafe_allow_html=True)
+                    else:
+                        ur    = get_unread_count(my_name, dd["name"])
+                        badge = f'<span class="unread-badge">{ur}</span>' if ur > 0 else ""
+                        st_s  = dd["status"]
+                        sc    = ("status-online"  if "Online" in st_s else
+                                 "status-busy"    if "Busy"   in st_s else
+                                 "status-break"   if "Break"  in st_s else "status-wfh")
+                        sicon = ("🟢" if "Online" in st_s else
+                                 "🔴" if "Busy"   in st_s else
+                                 "🟡" if "Break"  in st_s else "🔵")
+                        # ✅ Real profile photo on desk
+                        avatar = get_avatar_html(dd["name"], size=52)
+                        st.markdown(
+                            f'<div class="{sc}" style="text-align:center;min-height:110px;">'
+                            f'<div class="desk-title">Desk {d}</div>'
+                            f'<div style="margin:4px auto;">{avatar}</div>'
+                            f'<div style="font-size:11px;font-weight:bold;margin-top:3px;">'
+                            f'{dd["name"]} {badge}</div>'
+                            f'<div style="font-size:10px;color:#555;">{sicon} {st_s}</div>'
+                            f'</div>', unsafe_allow_html=True)
+                        st.link_button("📞", "https://meet.google.com/new", key=f"call_{d}")
+                        if dd["name"] != my_name:
+                            if st.button("💬", key=f"chat_{d}", help=f"Chat with {dd['name']}"):
+                                st.session_state.chat_with = dd["name"]
+                                mark_as_read(my_name, dd["name"])
+                                st.rerun()
+                    st.write("")
+
+        draw_desks("💼 MANAGER ROOM (1-3)",     "bg-manager",     1,  3)
+        draw_desks("🧪 CHEMICAL TEAM (4-7)",     "bg-chemical",    4,  7)
+        draw_desks("🔧 MECHANICAL TEAM (8-9)",   "bg-mechanical",  8,  9)
+        draw_desks("⚡ ELECTRICAL TEAM (10-14)", "bg-electrical",  10, 14)
+        draw_desks("📊 ACCOUNT MANAGER (15-17)", "bg-acc-manager", 15, 17)
+        draw_desks("📈 SALES TEAM (18-20)",      "bg-sales",       18, 20)
+        draw_desks("🧮 ACCOUNTANT (21-22)",      "bg-accountant",  21, 22)
+
+# ─── TAB 2 ───────────────────────────────────────────────────────────────
+with tab_chat:
+    st.markdown("### 💬 Private Messages")
+    dc = get_all_desks()
+    online_users = [r["name"] for _, r in dc.iterrows()
+                    if r["name"] != "🪑 Empty" and r["name"] != my_name]
+
+    if not online_users:
+        st.info("No other staff online right now.")
+    else:
+        cu, cc = st.columns([1, 2.5])
+        with cu:
+            st.markdown("**👥 Online Staff:**")
+            for user in online_users:
+                ur  = get_unread_count(my_name, user)
+                av  = get_avatar_html(user, size=26)
+                lb  = user + (f" 🔴 {ur}" if ur > 0 else " 🟢")
+                if st.button(lb, key=f"sel_{user}", use_container_width=True):
+                    st.session_state.chat_with = user
+                    mark_as_read(my_name, user); st.rerun()
+
+        with cc:
+            target = st.session_state.chat_with
+            if target and target in online_users:
+                t_av = get_avatar_html(target, size=42)
+                st.markdown(
+                    f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+                    f'{t_av}<b style="font-size:17px;">{target}</b></div>',
+                    unsafe_allow_html=True)
+                mark_as_read(my_name, target)
+                msgs = get_private_messages(my_name, target)
+                if not msgs: st.info("No messages yet. Say hi! 👋")
+                render_chat_messages(msgs, my_name, is_group=False)
+
+                st.markdown("---")
+                st.markdown("**😊 Quick Emoji:**")
+                pe_cols = st.columns(len(QUICK_EMOJIS))
+                for i, emoji in enumerate(QUICK_EMOJIS):
+                    with pe_cols[i]:
+                        if st.button(emoji, key=f"pmemoji_{i}", use_container_width=True):
+                            send_private_message(my_name, target, emoji); st.rerun()
+
+                with st.form(f"pm_{target}", clear_on_submit=True):
+                    pm_msg  = st.text_input("", placeholder=f"Type to {target}...",
+                                             label_visibility="collapsed")
+                    pm_file = st.file_uploader("📎 Attach:",
+                                                type=["png","jpg","jpeg","pdf","txt","xlsx","docx"],
+                                                key=f"pmf_{target}")
+                    if st.form_submit_button("Send ➤", use_container_width=True):
+                        if pm_msg or pm_file:
+                            fd=fn=ft=None
+                            if pm_file:
+                                fd=file_to_base64(pm_file.read()); fn=pm_file.name; ft=pm_file.type
+                            send_private_message(my_name, target, pm_msg, fd, fn, ft)
+                            st.rerun()
+            else:
+                st.info("👈 Select a staff member to start chatting!")
+
+# ─── TAB 3 ───────────────────────────────────────────────────────────────
+with tab_admin:
+    st.markdown("### 🛠️ Admin Control Panel")
+    ap = st.text_input("Admin Password:", type="password", key="admin_pw")
+    if ap == ADMIN_EXTRACT_PASSWORD:
+        st.success("🔒 Access Granted!")
+        a1, a2 = st.columns(2)
+        with a1:
+            st.markdown("#### 📢 Notice Board")
+            cn = get_notice()
+            nn = st.text_area("Announcement:", value=cn["text"])
+            if st.button("📢 Broadcast", use_container_width=True):
+                update_notice(nn, my_name); st.success("Updated!"); st.rerun()
+        with a2:
+            st.markdown("#### 🧹 Force Reset Frozen Desks")
+            if st.button("🧹 Reset All (except me)", use_container_width=True):
+                for _, row in get_all_desks().iterrows():
+                    if row["name"] != "🪑 Empty" and row["name"] != my_name:
+                        clear_desk(int(row["desk_id"]))
+                st.success("Done!"); st.rerun()
+        st.markdown("---")
+        st.markdown("#### 📥 Attendance Report")
+        adf = get_attendance_df()
+        if len(adf) > 0:
+            csv = adf.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Download CSV", data=csv,
+                file_name=f"PCAS_Attendance_{get_dubai_time().strftime('%B_%Y')}.csv",
+                mime="text/csv", use_container_width=True)
+            st.dataframe(adf, use_container_width=True, hide_index=True)
+        else:
+            st.warning("No records yet.")
+    elif ap:
+        st.error("❌ Wrong password!")
+
+# AUTO REFRESH
+time.sleep(0.5)
+st.rerun()
