@@ -1,0 +1,7 @@
+.streamlit/secrets.toml
+pcas_office.db
+__pycache__/
+*.pyc
+.venv/
+messages_db.json
+office_db.json
