@@ -5,6 +5,7 @@ import sqlite3
 import time
 import base64
 import hashlib
+import os
 
 st.set_page_config(
     page_title="PCAS VIRTUAL OFFICE v2",
@@ -12,6 +13,19 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ─────────────────────────────────────────────────────────────────────────
+# ✅ FIX #1: Real-time refresh WITHOUT the infinite sleep+rerun loop.
+# The old `time.sleep(0.5); st.rerun()` at the bottom of the script caused
+# every connected user to hammer the server in a tight loop -> CPU 100%,
+# crashes on Streamlit Cloud, and dropped clicks. This uses a proper
+# timed refresh instead. Run: pip install streamlit-autorefresh
+# ─────────────────────────────────────────────────────────────────────────
+try:
+    from streamlit_autorefresh import st_autorefresh
+    st_autorefresh(interval=4000, key="office_live_refresh")
+except ImportError:
+    st.warning("⚠️ Install `streamlit-autorefresh` for live updates: pip install streamlit-autorefresh", icon="⚠️")
 
 st.markdown("""
 <style>
@@ -79,14 +93,29 @@ html, body, [data-testid="stAppViewContainer"] {
 """, unsafe_allow_html=True)
 
 # =========================================================================
-# CONFIG
+# ✅ FIX #3: Secrets instead of hardcoded plaintext passwords in source.
+# Create a file `.streamlit/secrets.toml` (and add it to .gitignore so it
+# is NEVER pushed to GitHub) with:
+#   OFFICE_PASSWORD = "PCAS@2026"
+#   ADMIN_EXTRACT_PASSWORD = "ADMIN@PCAS"
+#   ALLOWED_DOMAIN = "@pcas-cert.com"
+# If secrets.toml is missing, these defaults are used so the app still
+# runs locally in PyCharm without extra setup.
 # =========================================================================
-OFFICE_PASSWORD        = "PCAS@2026"
-ADMIN_EXTRACT_PASSWORD = "ADMIN@PCAS"
-ALLOWED_DOMAIN         = "@pcas-cert.com"
-DB_PATH                = "pcas_office.db"
-HEARTBEAT_TIMEOUT      = 12
-QUICK_EMOJIS           = ["👍","❤️","😂","😮","🙏","🔥","✅","👏"]
+def get_secret(key, default):
+    try:
+        return st.secrets[key]
+    except Exception:
+        return default
+
+OFFICE_PASSWORD        = get_secret("OFFICE_PASSWORD", "PCAS@2026")
+ADMIN_EXTRACT_PASSWORD = get_secret("ADMIN_EXTRACT_PASSWORD", "ADMIN@PCAS")
+ALLOWED_DOMAIN         = get_secret("ALLOWED_DOMAIN", "@pcas-cert.com")
+
+DB_PATH           = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pcas_office.db")
+HEARTBEAT_TIMEOUT = 12
+MAX_FILE_SIZE_MB  = 5
+QUICK_EMOJIS      = ["👍","❤️","😂","😮","🙏","🔥","✅","👏"]
 AVATAR_COLORS = [
     "#e74c3c","#e67e22","#f39c12","#27ae60","#16a085",
     "#2980b9","#8e44ad","#c0392b","#d35400","#1a5276",
@@ -102,7 +131,7 @@ def get_avatar_color(name):
 
 def get_initials(name):
     parts = name.strip().split()
-    return (parts[0][0]+parts[1][0]).upper() if len(parts)>=2 else parts[0][:2].upper()
+    return (parts[0][0]+parts[1][0]).upper() if len(parts) >= 2 else parts[0][:2].upper()
 
 def get_avatar_html(username, size=50):
     photo = get_profile_photo(username)
@@ -112,7 +141,7 @@ def get_avatar_html(username, size=50):
                 f'style="width:{size}px;height:{size}px;">')
     color    = get_avatar_color(username)
     initials = get_initials(username)
-    fs       = max(11, size//3)
+    fs       = max(11, size // 3)
     return (f'<div style="width:{size}px;height:{size}px;border-radius:50%;'
             f'background:{color};color:#fff;display:flex;align-items:center;'
             f'justify-content:center;font-size:{fs}px;font-weight:900;'
@@ -120,13 +149,21 @@ def get_avatar_html(username, size=50):
             f'box-shadow:0 3px 10px rgba(0,0,0,0.2);">{initials}</div>')
 
 # =========================================================================
-# DATABASE INIT
+# ✅ FIX #2: SQLite concurrency hardening.
+# Every connection now uses a 30s busy timeout + WAL journal mode, so
+# multiple staff checking in / chatting at the same moment no longer
+# throws "database is locked" errors.
 # =========================================================================
+def get_db():
+    conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA busy_timeout=30000;")
+    return conn
+
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db()
     c = conn.cursor()
 
-    # Desks
     c.execute("PRAGMA table_info(desks)")
     cols = [r[1] for r in c.fetchall()]
     if cols and "desk_id" not in cols:
@@ -140,43 +177,38 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM desks")
     if c.fetchone()[0] == 0:
         for i in range(1, 23):
-            c.execute("INSERT INTO desks VALUES (?,?,?,?,?)", (i,'🪑 Empty','Offline','-',0))
+            c.execute("INSERT INTO desks VALUES (?,?,?,?,?)", (i, '🪑 Empty', 'Offline', '-', 0))
     try: c.execute("ALTER TABLE desks ADD COLUMN last_heartbeat REAL DEFAULT 0")
-    except: pass
+    except Exception: pass
 
-    # Attendance
     c.execute('''CREATE TABLE IF NOT EXISTS attendance (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         staff_name TEXT, date TEXT, desk TEXT,
         checkin_time TEXT, checkout_time TEXT DEFAULT 'Active In Office', status TEXT)''')
 
-    # Group messages
     c.execute('''CREATE TABLE IF NOT EXISTS group_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender TEXT, message TEXT, timestamp TEXT,
         file_data TEXT, file_name TEXT, file_type TEXT)''')
-    for col in ["file_data","file_name","file_type"]:
+    for col in ["file_data", "file_name", "file_type"]:
         try: c.execute(f"ALTER TABLE group_messages ADD COLUMN {col} TEXT")
-        except: pass
+        except Exception: pass
 
-    # Private messages
     c.execute('''CREATE TABLE IF NOT EXISTS private_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender TEXT, receiver TEXT, message TEXT, timestamp TEXT,
         is_read INTEGER DEFAULT 0,
         file_data TEXT, file_name TEXT, file_type TEXT)''')
-    for col in ["file_data","file_name","file_type"]:
+    for col in ["file_data", "file_name", "file_type"]:
         try: c.execute(f"ALTER TABLE private_messages ADD COLUMN {col} TEXT")
-        except: pass
+        except Exception: pass
 
-    # Notice
     c.execute('''CREATE TABLE IF NOT EXISTS notice (
         id INTEGER PRIMARY KEY, text TEXT, posted_by TEXT)''')
     c.execute("SELECT COUNT(*) FROM notice")
     if c.fetchone()[0] == 0:
         c.execute("INSERT INTO notice VALUES (1,'Welcome to PCAS Virtual Office v2.0!','Admin')")
 
-    # Profile photos
     c.execute('''CREATE TABLE IF NOT EXISTS profiles (
         username TEXT PRIMARY KEY, photo_data TEXT)''')
 
@@ -187,8 +219,6 @@ init_db()
 # =========================================================================
 # DB HELPERS
 # =========================================================================
-def get_db(): return sqlite3.connect(DB_PATH)
-
 def get_all_desks():
     conn = get_db()
     df = pd.read_sql("SELECT * FROM desks ORDER BY desk_id", conn)
@@ -285,17 +315,17 @@ def render_chat_messages(msgs, my_name, is_group=False):
     for row in msgs:
         sender = row[0]
         if is_group:
-            message   = row[1] if row[1] else ""
-            ts        = row[2] if row[2] else ""
-            fd        = row[3] if len(row) > 3 else None
-            fn        = row[4] if len(row) > 4 else None
-            ft        = row[5] if len(row) > 5 else None
+            message = row[1] if row[1] else ""
+            ts      = row[2] if row[2] else ""
+            fd      = row[3] if len(row) > 3 else None
+            fn      = row[4] if len(row) > 4 else None
+            ft      = row[5] if len(row) > 5 else None
         else:
-            message   = row[2] if row[2] else ""
-            ts        = row[3] if row[3] else ""
-            fd        = row[4] if len(row) > 4 else None
-            fn        = row[5] if len(row) > 5 else None
-            ft        = row[6] if len(row) > 6 else None
+            message = row[2] if row[2] else ""
+            ts      = row[3] if row[3] else ""
+            fd      = row[4] if len(row) > 4 else None
+            fn      = row[5] if len(row) > 5 else None
+            ft      = row[6] if len(row) > 6 else None
         if sender == my_name:
             st.markdown(
                 f'<div class="chat-bubble-me">{message}'
@@ -389,14 +419,17 @@ if not st.session_state.logged_in:
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
         with st.form("login_form"):
-            st.image("pcas_logo.png", width=120)
+            if os.path.exists("pcas_logo.png"):
+                st.image("pcas_logo.png", width=120)
             st.markdown('<h3 style="color:#1a365d;">PCAS Secure Login Gate</h3>', unsafe_allow_html=True)
             em = st.text_input("Office Email:", placeholder="username@pcas-cert.com").strip().lower()
             pw = st.text_input("Passcode:", type="password", placeholder="••••••••")
             if st.form_submit_button("Verify & Enter Office 🚀", use_container_width=True):
                 if not em:
                     st.error("Enter your email!")
-                elif ALLOWED_DOMAIN not in em:
+                # ✅ FIX #7: endswith() instead of substring `in` check so
+                # "user@pcas-cert.com.evil.com" can no longer sneak past.
+                elif not em.endswith(ALLOWED_DOMAIN):
                     st.error("❌ Use @pcas-cert.com email only!")
                 elif pw != OFFICE_PASSWORD:
                     st.error("❌ Wrong passcode!")
@@ -405,7 +438,6 @@ if not st.session_state.logged_in:
                     st.session_state.logged_in  = True
                     st.session_state.username   = uname
                     st.session_state.user_email = em
-                    # ✅ No photo setup screen — direct to office
                     st.rerun()
     st.stop()
 
@@ -420,21 +452,27 @@ cleanup_disconnected()
 # ── HEADER ───────────────────────────────────────────────────────────────
 st.markdown('<div class="header-mild-box">', unsafe_allow_html=True)
 cl, ct = st.columns([0.08, 0.92])
-with cl: st.image("pcas_logo.png", width=60)
-with ct: st.markdown('<h1 class="main-title">PCAS VIRTUAL OFFICE v2.0</h1>', unsafe_allow_html=True)
+with cl:
+    if os.path.exists("pcas_logo.png"):
+        st.image("pcas_logo.png", width=60)
+with ct:
+    st.markdown('<h1 class="main-title">PCAS VIRTUAL OFFICE v2.0</h1>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 now_dt = get_dubai_time()
+
+# ✅ FIX #9: fetch desks ONCE per rerun and reuse everywhere below,
+# instead of calling get_all_desks() three separate times.
+desks_df = get_all_desks()
+
 h1, h2, h3, h4 = st.columns([2, 1, 0.8, 0.8])
 with h1:
     st.write(f"📅 {now_dt.strftime('%B %d, %Y')} | 🕒 Dubai: {now_dt.strftime('%I:%M %p')}")
 with h2:
-    desks_df    = get_all_desks()
-    hu          = desks_df[desks_df["name"] != "🪑 Empty"]["name"].tolist()
+    hu = desks_df[desks_df["name"] != "🪑 Empty"]["name"].tolist()
     total_unread = sum(get_unread_count(my_name, u) for u in hu if u != my_name)
     if total_unread > 0:
-        st.markdown(f'📬 **Inbox** <span class="unread-badge">{total_unread}</span>',
-                    unsafe_allow_html=True)
+        st.markdown(f'📬 **Inbox** <span class="unread-badge">{total_unread}</span>', unsafe_allow_html=True)
 with h3:
     if st.button("📸 My Photo", use_container_width=True):
         st.session_state.show_photo_panel = not st.session_state.show_photo_panel
@@ -446,36 +484,35 @@ with h4:
         st.session_state.username  = ""
         st.rerun()
 
-# ── PHOTO PANEL (header dropdown) ────────────────────────────────────────
+# ── PHOTO PANEL ──────────────────────────────────────────────────────────
 if st.session_state.show_photo_panel:
     st.markdown("---")
     _, pm, _ = st.columns([1, 1.2, 1])
     with pm:
         st.markdown('<div class="photo-panel-box">', unsafe_allow_html=True)
         st.markdown("### 📸 My Profile Photo")
-        st.markdown(
-            f'<div style="margin:12px auto;">{get_avatar_html(my_name, size=90)}</div>',
-            unsafe_allow_html=True)
-        st.markdown(f'<p style="color:#555;font-weight:bold;">{my_name}</p>',
-                    unsafe_allow_html=True)
-        new_photo = st.file_uploader(
-            "📁 Choose photo (PNG / JPG):",
-            type=["png", "jpg", "jpeg"], key="change_ph")
+        st.markdown(f'<div style="margin:12px auto;">{get_avatar_html(my_name, size=90)}</div>', unsafe_allow_html=True)
+        st.markdown(f'<p style="color:#555;font-weight:bold;">{my_name}</p>', unsafe_allow_html=True)
+        new_photo = st.file_uploader("📁 Choose photo (PNG / JPG, max 5MB):", type=["png", "jpg", "jpeg"], key="change_ph")
         if new_photo:
-            st.markdown("**Preview:**")
-            st.image(new_photo, width=110)
-            new_photo.seek(0)
-            pp1, pp2 = st.columns(2)
-            with pp1:
-                if st.button("💾 Save Photo", use_container_width=True, type="primary"):
-                    new_photo.seek(0)
-                    save_profile_photo(my_name, new_photo.read())
-                    st.session_state.show_photo_panel = False
-                    st.success("✅ Photo updated!")
-                    time.sleep(0.4); st.rerun()
-            with pp2:
-                if st.button("❌ Cancel", use_container_width=True):
-                    st.session_state.show_photo_panel = False; st.rerun()
+            # ✅ FIX #6: file size guard before saving to DB.
+            if new_photo.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                st.error(f"❌ File too large! Max {MAX_FILE_SIZE_MB} MB allowed.")
+            else:
+                st.markdown("**Preview:**")
+                st.image(new_photo, width=110)
+                new_photo.seek(0)
+                pp1, pp2 = st.columns(2)
+                with pp1:
+                    if st.button("💾 Save Photo", use_container_width=True, type="primary"):
+                        new_photo.seek(0)
+                        save_profile_photo(my_name, new_photo.read())
+                        st.session_state.show_photo_panel = False
+                        st.success("✅ Photo updated!")
+                        st.rerun()
+                with pp2:
+                    if st.button("❌ Cancel", use_container_width=True):
+                        st.session_state.show_photo_panel = False; st.rerun()
         else:
             if st.button("❌ Close", use_container_width=True):
                 st.session_state.show_photo_panel = False; st.rerun()
@@ -489,20 +526,19 @@ st.markdown(
     f'<span style="float:right;color:#666;font-size:11px;">— {notice["by"]}</span></div>',
     unsafe_allow_html=True)
 
-# ── STATS ─────────────────────────────────────────────────────────────────
-desks_df = get_all_desks()
+# ── STATS ────────────────────────────────────────────────────────────────
 oc  = len(desks_df[desks_df["status"].str.contains("Online", na=False)])
 bc  = len(desks_df[desks_df["status"].str.contains("Busy",   na=False)])
 brc = len(desks_df[desks_df["status"].str.contains("Break",  na=False)])
 wc  = len(desks_df[desks_df["status"].str.contains("WFH",    na=False)])
 ac  = len(desks_df[desks_df["name"] != "🪑 Empty"])
 
-m1,m2,m3,m4,m5 = st.columns(5)
-m1.markdown(f'<div class="metric-card"><b style="color:#2ecc71;">🟢 Online</b><h3>{oc}</h3></div>',  unsafe_allow_html=True)
-m2.markdown(f'<div class="metric-card"><b style="color:#e74c3c;">🔴 Busy</b><h3>{bc}</h3></div>',    unsafe_allow_html=True)
-m3.markdown(f'<div class="metric-card"><b style="color:#f1c40f;">🟡 Break</b><h3>{brc}</h3></div>',  unsafe_allow_html=True)
-m4.markdown(f'<div class="metric-card"><b style="color:#3498db;">🔵 WFH</b><h3>{wc}</h3></div>',     unsafe_allow_html=True)
-m5.markdown(f'<div class="metric-card"><b style="color:#1a365d;">👥 Active</b><h3>{ac}</h3></div>',  unsafe_allow_html=True)
+m1, m2, m3, m4, m5 = st.columns(5)
+m1.markdown(f'<div class="metric-card"><b style="color:#2ecc71;">🟢 Online</b><h3>{oc}</h3></div>', unsafe_allow_html=True)
+m2.markdown(f'<div class="metric-card"><b style="color:#e74c3c;">🔴 Busy</b><h3>{bc}</h3></div>', unsafe_allow_html=True)
+m3.markdown(f'<div class="metric-card"><b style="color:#f1c40f;">🟡 Break</b><h3>{brc}</h3></div>', unsafe_allow_html=True)
+m4.markdown(f'<div class="metric-card"><b style="color:#3498db;">🔵 WFH</b><h3>{wc}</h3></div>', unsafe_allow_html=True)
+m5.markdown(f'<div class="metric-card"><b style="color:#1a365d;">👥 Active</b><h3>{ac}</h3></div>', unsafe_allow_html=True)
 st.markdown("---")
 
 # =========================================================================
@@ -515,8 +551,7 @@ with tab_office:
     col_ctrl, col_floor = st.columns([1.1, 1.9])
 
     with col_ctrl:
-        st.markdown('<div class="allocation-dark-box">👤 DESK ALLOCATION</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="allocation-dark-box">👤 DESK ALLOCATION</div>', unsafe_allow_html=True)
         st.markdown(
             f'<div style="text-align:center;margin-bottom:10px;">'
             f'{get_avatar_html(my_name, 65)}'
@@ -524,9 +559,8 @@ with tab_office:
             f'</div>', unsafe_allow_html=True)
         st.info(f"**{st.session_state.user_email}**")
 
-        desks_df2 = get_all_desks()
         desk_options = []
-        for _, row in desks_df2.iterrows():
+        for _, row in desks_df.iterrows():
             i = int(row["desk_id"])
             dept = ("Manager"      if 1  <= i <= 3  else
                     "Chemical"     if 4  <= i <= 7  else
@@ -537,19 +571,25 @@ with tab_office:
             if row["name"] == "🪑 Empty" or row["name"] == my_name:
                 desk_options.append(f"Desk {i} ({dept})")
 
-        sel_desk  = st.selectbox("Select Desk:", desk_options)
-        desk_num  = int(sel_desk.split(" ")[1])
-        my_status = st.radio(
-            "Status:", ["Online 🟢","Busy/Meeting 🔴","On Break 🟡","WFH 🔵"],
-            horizontal=True)
+        # ✅ FIX #4: guard against an empty desk_options list (would crash
+        # on .split() with "None is not subscriptable" once all 22 desks
+        # are occupied by other people).
+        if desk_options:
+            sel_desk = st.selectbox("Select Desk:", desk_options)
+            desk_num = int(sel_desk.split(" ")[1])
+        else:
+            st.warning("😔 No desks available right now. Please wait for one to free up.")
+            desk_num = None
+
+        my_status = st.radio("Status:", ["Online 🟢", "Busy/Meeting 🔴", "On Break 🟡", "WFH 🔵"], horizontal=True)
 
         b1, b2 = st.columns(2)
         with b1:
-            if st.button("🚀 Check-In", use_container_width=True, type="primary"):
+            if st.button("🚀 Check-In", use_container_width=True, type="primary", disabled=desk_num is None):
                 clear_user_desk(my_name)
                 ct_str = get_dubai_time().strftime("%I:%M %p")
                 update_desk(desk_num, my_name, my_status, ct_str)
-                cs = my_status.replace("🟢","").replace("🔴","").replace("🟡","").replace("🔵","").strip()
+                cs = my_status.replace("🟢", "").replace("🔴", "").replace("🟡", "").replace("🔵", "").strip()
                 add_attendance(my_name, f"Desk {desk_num}", ct_str, cs)
                 st.success("Checked In! ✅"); st.rerun()
         with b2:
@@ -558,8 +598,7 @@ with tab_office:
                 clear_user_desk(my_name); st.rerun()
 
         st.markdown("---")
-        st.markdown('<div class="groupboard-dark-box">📢 GROUP BOARD</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="groupboard-dark-box">📢 GROUP BOARD</div>', unsafe_allow_html=True)
         st.markdown("**😊 Quick Emoji:**")
         ec = st.columns(len(QUICK_EMOJIS))
         for i, emoji in enumerate(QUICK_EMOJIS):
@@ -570,33 +609,38 @@ with tab_office:
         with st.form("group_form", clear_on_submit=True):
             g_msg  = st.text_input("✏️ Message everyone:", placeholder="Type a message...")
             g_file = st.file_uploader(
-                "📎 Attach Image / Doc",
-                type=["png","jpg","jpeg","pdf","txt","xlsx","docx"],
+                f"📎 Attach Image / Doc (max {MAX_FILE_SIZE_MB}MB)",
+                type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx", "docx"],
                 key="gfile")
             if st.form_submit_button("Send 🌍", use_container_width=True):
                 if g_msg or g_file:
                     fd = fn = ft = None
+                    blocked = False
                     if g_file:
-                        fd = file_to_base64(g_file.read())
-                        fn = g_file.name; ft = g_file.type
-                    send_group_message(my_name, g_msg, fd, fn, ft); st.rerun()
+                        # ✅ FIX #6: size guard for group chat attachments too.
+                        if g_file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                            st.error(f"❌ File too large! Max {MAX_FILE_SIZE_MB} MB allowed.")
+                            blocked = True
+                        else:
+                            fd = file_to_base64(g_file.read())
+                            fn = g_file.name; ft = g_file.type
+                    if not blocked:
+                        send_group_message(my_name, g_msg, fd, fn, ft); st.rerun()
 
         with st.expander("📜 Group Chat", expanded=True):
             render_chat_messages(get_group_messages(30), my_name, is_group=True)
 
     with col_floor:
         st.subheader("🏢 PCAS Office Floor")
-        st.link_button("🚨 JOIN GROUP CALL", "https://meet.google.com/new",
-                        type="primary", use_container_width=True)
+        st.link_button("🚨 JOIN GROUP CALL", "https://meet.google.com/new", type="primary", use_container_width=True)
         st.markdown("---")
 
-        desks_df3 = get_all_desks()
-        desk_map  = {int(r["desk_id"]): r for _, r in desks_df3.iterrows()}
+        desk_map = {int(r["desk_id"]): r for _, r in desks_df.iterrows()}
 
         def draw_desks(title, bg, s, e):
             st.markdown(f'<div class="dept-box {bg}">{title}</div>', unsafe_allow_html=True)
             cols = st.columns(e - s + 1)
-            for idx, d in enumerate(range(s, e+1)):
+            for idx, d in enumerate(range(s, e + 1)):
                 dd = desk_map[d]
                 with cols[idx]:
                     if dd["name"] == "🪑 Empty":
@@ -643,8 +687,7 @@ with tab_office:
 # ─── TAB 2: PRIVATE MESSAGES ─────────────────────────────────────────────
 with tab_chat:
     st.markdown("### 💬 Private Messages")
-    dc = get_all_desks()
-    online_users = [r["name"] for _, r in dc.iterrows()
+    online_users = [r["name"] for _, r in desks_df.iterrows()
                     if r["name"] != "🪑 Empty" and r["name"] != my_name]
     if not online_users:
         st.info("No other staff online right now.")
@@ -678,20 +721,25 @@ with tab_chat:
                         if st.button(emoji, key=f"pmemoji_{i}", use_container_width=True):
                             send_private_message(my_name, target, emoji); st.rerun()
                 with st.form(f"pm_{target}", clear_on_submit=True):
-                    pm_msg  = st.text_input("", placeholder=f"Type to {target}...",
-                                             label_visibility="collapsed")
+                    pm_msg  = st.text_input("", placeholder=f"Type to {target}...", label_visibility="collapsed")
                     pm_file = st.file_uploader(
-                        "📎 Attach:",
-                        type=["png","jpg","jpeg","pdf","txt","xlsx","docx"],
+                        f"📎 Attach (max {MAX_FILE_SIZE_MB}MB):",
+                        type=["png", "jpg", "jpeg", "pdf", "txt", "xlsx", "docx"],
                         key=f"pmf_{target}")
                     if st.form_submit_button("Send ➤", use_container_width=True):
                         if pm_msg or pm_file:
                             fd = fn = ft = None
+                            blocked = False
                             if pm_file:
-                                fd = file_to_base64(pm_file.read())
-                                fn = pm_file.name; ft = pm_file.type
-                            send_private_message(my_name, target, pm_msg, fd, fn, ft)
-                            st.rerun()
+                                if pm_file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                                    st.error(f"❌ File too large! Max {MAX_FILE_SIZE_MB} MB allowed.")
+                                    blocked = True
+                                else:
+                                    fd = file_to_base64(pm_file.read())
+                                    fn = pm_file.name; ft = pm_file.type
+                            if not blocked:
+                                send_private_message(my_name, target, pm_msg, fd, fn, ft)
+                                st.rerun()
             else:
                 st.info("👈 Select a staff member to start chatting!")
 
@@ -730,6 +778,5 @@ with tab_admin:
     elif ap:
         st.error("❌ Wrong password!")
 
-# ── AUTO REFRESH ──────────────────────────────────────────────────────────
-time.sleep(0.5)
-st.rerun()
+# ✅ FIX #1 (cont.): NO manual sleep+rerun here anymore.
+# streamlit_autorefresh at the top of the file handles live updates safely.
