@@ -7,6 +7,25 @@ import base64
 import hashlib
 import os
 
+# ─────────────────────────────────────────────────────────────────────────
+# ✅ FIX #10: "Remember Me" cookie so login survives session drops.
+# Streamlit's st.session_state lives only as long as the browser's live
+# WebSocket connection. If the tab goes idle/background (phone lock, tab
+# switch, weak network), the connection can drop and reconnect as a BRAND
+# NEW session -> session_state resets -> user gets bounced back to login.
+# A browser cookie survives that reconnect, so we use one to silently
+# restore the login instead of forcing the person to type email+password
+# again every time they come back to the tab.
+# pip install streamlit-cookies-controller
+# ─────────────────────────────────────────────────────────────────────────
+try:
+    from streamlit_cookies_controller import CookieController
+    cookies = CookieController()
+    COOKIES_AVAILABLE = True
+except ImportError:
+    COOKIES_AVAILABLE = False
+    st.warning("⚠️ Install `streamlit-cookies-controller` to stay logged in across reconnects: pip install streamlit-cookies-controller", icon="⚠️")
+
 st.set_page_config(
     page_title="PCAS VIRTUAL OFFICE v2",
     page_icon="🛡️",
@@ -411,6 +430,17 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
+# ✅ FIX #10 (cont.): if session_state was reset by a reconnect, but a
+# valid "remember me" cookie still exists, silently restore the login
+# instead of showing the login page again.
+if not st.session_state.logged_in and COOKIES_AVAILABLE:
+    cookie_email = cookies.get("pcas_email")
+    cookie_name  = cookies.get("pcas_name")
+    if cookie_email and cookie_name and cookie_email.endswith(ALLOWED_DOMAIN):
+        st.session_state.logged_in  = True
+        st.session_state.username   = cookie_name
+        st.session_state.user_email = cookie_email
+
 # =========================================================================
 # LOGIN PAGE
 # =========================================================================
@@ -438,6 +468,9 @@ if not st.session_state.logged_in:
                     st.session_state.logged_in  = True
                     st.session_state.username   = uname
                     st.session_state.user_email = em
+                    if COOKIES_AVAILABLE:
+                        cookies.set("pcas_email", em)
+                        cookies.set("pcas_name", uname)
                     st.rerun()
     st.stop()
 
@@ -482,6 +515,9 @@ with h4:
         clear_user_desk(my_name)
         st.session_state.logged_in = False
         st.session_state.username  = ""
+        if COOKIES_AVAILABLE:
+            cookies.remove("pcas_email")
+            cookies.remove("pcas_name")
         st.rerun()
 
 # ── PHOTO PANEL ──────────────────────────────────────────────────────────
