@@ -26,6 +26,12 @@ except ImportError:
     COOKIES_AVAILABLE = False
     st.warning("⚠️ Install `streamlit-cookies-controller` to stay logged in across reconnects: pip install streamlit-cookies-controller", icon="⚠️")
 
+# ✅ FIX #11: how long the "remember me" login should last (in seconds).
+# 30 days. Also used as the cookie max_age so browsers keep it as a
+# persistent cookie instead of a session-only cookie that can vanish
+# early on some browsers/devices.
+COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60  # 30 days
+
 st.set_page_config(
     page_title="PCAS VIRTUAL OFFICE v2",
     page_icon="🛡️",
@@ -433,9 +439,19 @@ for k, v in defaults.items():
 # ✅ FIX #10 (cont.): if session_state was reset by a reconnect, but a
 # valid "remember me" cookie still exists, silently restore the login
 # instead of showing the login page again.
+#
+# ✅ FIX #12: use getAll() instead of get() for each individual cookie.
+# The cookie controller renders a hidden iframe component and syncs all
+# cookies together — calling get() per-key can race the very first sync
+# on a fresh reconnect and silently return None even though the cookie
+# exists. getAll() forces one full, reliable sync.
 if not st.session_state.logged_in and COOKIES_AVAILABLE:
-    cookie_email = cookies.get("pcas_email")
-    cookie_name  = cookies.get("pcas_name")
+    try:
+        all_cookies = cookies.getAll()
+    except Exception:
+        all_cookies = {}
+    cookie_email = all_cookies.get("pcas_email")
+    cookie_name  = all_cookies.get("pcas_name")
     if cookie_email and cookie_name and cookie_email.endswith(ALLOWED_DOMAIN):
         st.session_state.logged_in  = True
         st.session_state.username   = cookie_name
@@ -469,8 +485,22 @@ if not st.session_state.logged_in:
                     st.session_state.username   = uname
                     st.session_state.user_email = em
                     if COOKIES_AVAILABLE:
-                        cookies.set("pcas_email", em)
-                        cookies.set("pcas_name", uname)
+                        # ✅ FIX #13: explicit max_age so the cookie is a
+                        # persistent 30-day cookie, not a fragile
+                        # session-only cookie.
+                        cookies.set("pcas_email", em, max_age=COOKIE_MAX_AGE_SECONDS)
+                        cookies.set("pcas_name", uname, max_age=COOKIE_MAX_AGE_SECONDS)
+                        # ✅ FIX #14: THE MAIN BUG FIX.
+                        # cookies.set() writes through a hidden iframe
+                        # component - it needs a brief moment to actually
+                        # persist the cookie in the browser before we blow
+                        # the page away with st.rerun(). Without this
+                        # pause, st.rerun() can fire before the cookie is
+                        # actually saved, so on the very next reconnect
+                        # there is no cookie to restore from -> user gets
+                        # bounced back to the login page a few minutes
+                        # later even though they "logged in successfully".
+                        time.sleep(0.5)
                     st.rerun()
     st.stop()
 
@@ -518,6 +548,7 @@ with h4:
         if COOKIES_AVAILABLE:
             cookies.remove("pcas_email")
             cookies.remove("pcas_name")
+            time.sleep(0.3)  # let the removal persist before we rerun
         st.rerun()
 
 # ── PHOTO PANEL ──────────────────────────────────────────────────────────
