@@ -16,15 +16,29 @@ import os
 # A browser cookie survives that reconnect, so we use one to silently
 # restore the login instead of forcing the person to type email+password
 # again every time they come back to the tab.
-# pip install streamlit-cookies-controller
+#
+# ✅ FIX #16: switched from `streamlit-cookies-controller` to
+# `extra-streamlit-components` (stx.CookieManager). The old library's
+# component needed an unreliable browser -> server -> browser round trip
+# before a cookie write actually landed, which was inconsistent over the
+# network (especially on Streamlit Cloud) - cookies were often missing
+# right after login or right after a full page reload (F5). CookieManager
+# is the long-established, widely used library for this exact purpose and
+# syncs far more reliably.
+# pip install extra-streamlit-components
 # ─────────────────────────────────────────────────────────────────────────
 try:
-    from streamlit_cookies_controller import CookieController
-    cookies = CookieController()
+    import extra_streamlit_components as stx
+
+    @st.cache_resource
+    def get_cookie_manager():
+        return stx.CookieManager(key="pcas_cookie_manager")
+
+    cookie_manager = get_cookie_manager()
     COOKIES_AVAILABLE = True
 except ImportError:
     COOKIES_AVAILABLE = False
-    st.warning("⚠️ Install `streamlit-cookies-controller` to stay logged in across reconnects: pip install streamlit-cookies-controller", icon="⚠️")
+    st.warning("⚠️ Install `extra-streamlit-components` to stay logged in across reconnects: pip install extra-streamlit-components", icon="⚠️")
 
 # ✅ FIX #11: how long the "remember me" login should last (in seconds).
 # 30 days. Also used as the cookie max_age so browsers keep it as a
@@ -440,45 +454,34 @@ for k, v in defaults.items():
 # valid "remember me" cookie still exists, silently restore the login
 # instead of showing the login page again.
 #
-# ✅ FIX #12: use getAll() instead of get() for each individual cookie.
-# The cookie controller renders a hidden iframe component and syncs all
-# cookies together — calling get() per-key can race the very first sync
-# on a fresh reconnect and silently return None even though the cookie
-# exists. getAll() forces one full, reliable sync.
-#
-# ✅ FIX #15: on a full browser reload (F5 / Ctrl+R), the cookie
-# controller's hidden iframe component has NOT mounted/synced yet on the
-# very first script run of a brand new browser page load. That means
-# cookies.getAll() can come back completely empty even though the cookie
-# is sitting right there in the browser - so the person gets bounced to
-# the login page despite having a valid "remember me" cookie. We only
-# want to do this retry once per session (not on every single rerun),
-# so we gate it behind a one-time flag.
+# ✅ FIX #16 (cont.): CookieManager.get_all() reads every cookie in one
+# reliable sync. Just like before, on a brand new full page load the
+# component can need a brief moment to mount, so we still retry once
+# after a short pause if the first read comes back empty - but this is
+# now just a safety net, not the primary fix (the primary fix is using a
+# more reliable library).
 if not st.session_state.logged_in and COOKIES_AVAILABLE:
-    if "cookie_check_attempted" not in st.session_state:
-        st.session_state.cookie_check_attempted = True
+    if "cookie_check_attempts" not in st.session_state:
+        st.session_state.cookie_check_attempts = 0
 
-        def _try_restore_from_cookies():
-            try:
-                all_cookies = cookies.getAll()
-            except Exception:
-                all_cookies = {}
-            cookie_email = all_cookies.get("pcas_email")
-            cookie_name  = all_cookies.get("pcas_name")
-            if cookie_email and cookie_name and cookie_email.endswith(ALLOWED_DOMAIN):
-                st.session_state.logged_in  = True
-                st.session_state.username   = cookie_name
-                st.session_state.user_email = cookie_email
-                return True
-            return False
-
-        # First attempt - works fine on WebSocket reconnects where the
-        # iframe component is already mounted from before.
-        if not _try_restore_from_cookies():
-            # Component likely isn't ready yet on a fresh full page load.
-            # Give it a brief moment to mount and sync, then try once more.
+    if st.session_state.cookie_check_attempts < 2:
+        st.session_state.cookie_check_attempts += 1
+        try:
+            all_cookies = cookie_manager.get_all(key=f"pcas_get_all_cookies_{st.session_state.cookie_check_attempts}")
+        except Exception:
+            all_cookies = {}
+        cookie_email = (all_cookies or {}).get("pcas_email")
+        cookie_name  = (all_cookies or {}).get("pcas_name")
+        if cookie_email and cookie_name and cookie_email.endswith(ALLOWED_DOMAIN):
+            st.session_state.logged_in  = True
+            st.session_state.username   = cookie_name
+            st.session_state.user_email = cookie_email
+        elif st.session_state.cookie_check_attempts == 1:
+            # Component may not have mounted/synced yet on a brand new
+            # full page load. Give it a brief moment, then rerun once so
+            # the second pass (attempt #2) picks up the synced cookies.
             time.sleep(0.7)
-            _try_restore_from_cookies()
+            st.rerun()
 
 # =========================================================================
 # LOGIN PAGE
@@ -508,21 +511,15 @@ if not st.session_state.logged_in:
                     st.session_state.username   = uname
                     st.session_state.user_email = em
                     if COOKIES_AVAILABLE:
-                        # ✅ FIX #13: explicit max_age so the cookie is a
+                        # ✅ FIX #13: explicit expiry so the cookie is a
                         # persistent 30-day cookie, not a fragile
                         # session-only cookie.
-                        cookies.set("pcas_email", em, max_age=COOKIE_MAX_AGE_SECONDS)
-                        cookies.set("pcas_name", uname, max_age=COOKIE_MAX_AGE_SECONDS)
-                        # ✅ FIX #14: THE MAIN BUG FIX.
-                        # cookies.set() writes through a hidden iframe
-                        # component - it needs a brief moment to actually
-                        # persist the cookie in the browser before we blow
-                        # the page away with st.rerun(). Without this
-                        # pause, st.rerun() can fire before the cookie is
-                        # actually saved, so on the very next reconnect
-                        # there is no cookie to restore from -> user gets
-                        # bounced back to the login page a few minutes
-                        # later even though they "logged in successfully".
+                        expiry = datetime.datetime.now() + datetime.timedelta(seconds=COOKIE_MAX_AGE_SECONDS)
+                        cookie_manager.set("pcas_email", em, expires_at=expiry, key="pcas_set_email")
+                        cookie_manager.set("pcas_name", uname, expires_at=expiry, key="pcas_set_name")
+                        # ✅ FIX #14: give the browser a brief moment to
+                        # actually persist the cookies before we blow the
+                        # page away with st.rerun().
                         time.sleep(0.5)
                     st.rerun()
     st.stop()
@@ -569,9 +566,16 @@ with h4:
         st.session_state.logged_in = False
         st.session_state.username  = ""
         if COOKIES_AVAILABLE:
-            cookies.remove("pcas_email")
-            cookies.remove("pcas_name")
+            try:
+                cookie_manager.delete("pcas_email", key="pcas_del_email")
+            except KeyError:
+                pass
+            try:
+                cookie_manager.delete("pcas_name", key="pcas_del_name")
+            except KeyError:
+                pass
             time.sleep(0.3)  # let the removal persist before we rerun
+        st.session_state.cookie_check_attempts = 0
         st.rerun()
 
 # ── PHOTO PANEL ──────────────────────────────────────────────────────────
