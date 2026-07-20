@@ -29,12 +29,7 @@ import os
 # ─────────────────────────────────────────────────────────────────────────
 try:
     import extra_streamlit_components as stx
-
-    @st.cache_resource
-    def get_cookie_manager():
-        return stx.CookieManager(key="pcas_cookie_manager")
-
-    cookie_manager = get_cookie_manager()
+    cookie_manager = stx.CookieManager(key="pcas_cookie_manager")
     COOKIES_AVAILABLE = True
 except ImportError:
     COOKIES_AVAILABLE = False
