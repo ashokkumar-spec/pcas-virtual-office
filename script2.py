@@ -115,6 +115,28 @@ html, body, [data-testid="stAppViewContainer"] {
     box-shadow: 0 3px 10px rgba(0,0,0,0.2);
     display: block; margin: auto;
 }
+.floor-room {
+    background: #fbfbfb; border: 1px solid #e0e0e0; border-radius: 14px;
+    padding: 14px; margin-bottom: 14px; min-height: 130px;
+}
+.floor-room-title {
+    font-size: 12px; font-weight: 700; color: #666; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+}
+.floor-desk-tile {
+    border-radius: 8px; text-align: center; padding: 6px 2px; min-height: 74px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.floor-desk-tile.occupied-online  { background: #e8f8f5; border: 1px solid #2ecc71; }
+.floor-desk-tile.occupied-busy    { background: #fce4d6; border: 1px solid #e74c3c; }
+.floor-desk-tile.occupied-break   { background: #fef9e7; border: 1px solid #f1c40f; }
+.floor-desk-tile.occupied-wfh     { background: #ebf5fb; border: 1px solid #3498db; }
+.floor-desk-tile.empty            { background: #f4f6f7; border: 1px dashed #ccc; }
+.floor-desk-label { font-size: 9px; color: #999; margin-top: 2px; }
+.floor-entrance {
+    background: #f4f6f7; border: 1px dashed #bbb; border-radius: 10px;
+    padding: 10px 16px; text-align: center; color: #888; font-size: 13px; margin-top: 6px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -635,7 +657,7 @@ st.markdown("---")
 # =========================================================================
 # TABS
 # =========================================================================
-tab_office, tab_chat, tab_admin = st.tabs(["🏢 Office Floor", "💬 Messages", "🛠️ Admin"])
+tab_office, tab_floormap, tab_chat, tab_admin = st.tabs(["🏢 Office Floor", "🗺️ Floor Map", "💬 Messages", "🛠️ Admin"])
 
 # ─── TAB 1: OFFICE FLOOR ─────────────────────────────────────────────────
 with tab_office:
@@ -774,6 +796,72 @@ with tab_office:
         draw_desks("📊 ACCOUNT MANAGER (15-17)", "bg-acc-manager", 15, 17)
         draw_desks("📈 SALES TEAM (18-20)",      "bg-sales",       18, 20)
         draw_desks("🧮 ACCOUNTANT (21-22)",      "bg-accountant",  21, 22)
+
+# ─── TAB "FLOOR MAP" ──────────────────────────────────────────────────────
+# ✅ NEW FEATURE: spatial floor-plan style view. Rooms are arranged in a
+# building-blueprint layout (rows of side-by-side rooms) instead of the
+# single stacked list on the Office Floor tab, so it feels closer to a
+# real office map at a glance. Same live data, same click-to-chat.
+with tab_floormap:
+    st.subheader("🗺️ PCAS Office Floor Map")
+    st.caption("A spatial view of the office. Hover a desk for details, click 💬 to chat.")
+
+    desk_map_fm = {int(r["desk_id"]): r for _, r in desks_df.iterrows()}
+
+    def draw_floor_room(title, icon, s, e, n_cols=None):
+        st.markdown(f'<div class="floor-room">', unsafe_allow_html=True)
+        st.markdown(f'<div class="floor-room-title">{icon} {title}</div>', unsafe_allow_html=True)
+        desk_ids = list(range(s, e + 1))
+        cols = st.columns(n_cols or len(desk_ids))
+        for idx, d in enumerate(desk_ids):
+            dd = desk_map_fm[d]
+            with cols[idx % len(cols)]:
+                if dd["name"] == "🪑 Empty":
+                    st.markdown(
+                        f'<div class="floor-desk-tile empty">'
+                        f'<i style="font-size:18px;">🪑</i>'
+                        f'<div class="floor-desk-label">D{d}</div>'
+                        f'</div>', unsafe_allow_html=True)
+                else:
+                    st_s = dd["status"]
+                    status_key = ("online" if "Online" in st_s else
+                                  "busy"   if "Busy"   in st_s else
+                                  "break"  if "Break"  in st_s else "wfh")
+                    avatar = get_avatar_html(dd["name"], size=32)
+                    short_name = dd["name"].split()[0]
+                    st.markdown(
+                        f'<div class="floor-desk-tile occupied-{status_key}">'
+                        f'{avatar}'
+                        f'<div style="font-size:10px;font-weight:700;margin-top:3px;">{short_name}</div>'
+                        f'<div class="floor-desk-label">D{d}</div>'
+                        f'</div>', unsafe_allow_html=True)
+                    if dd["name"] != my_name:
+                        if st.button("💬", key=f"fm_chat_{d}", help=f"Chat with {dd['name']}", use_container_width=True):
+                            st.session_state.chat_with = dd["name"]
+                            mark_as_read(my_name, dd["name"]); st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    row1a, row1b = st.columns(2)
+    with row1a:
+        draw_floor_room("Manager room", "💼", 1, 3)
+    with row1b:
+        draw_floor_room("Mechanical team", "🔧", 8, 9, n_cols=2)
+
+    row2a, row2b = st.columns(2)
+    with row2a:
+        draw_floor_room("Chemical team", "🧪", 4, 7, n_cols=4)
+    with row2b:
+        draw_floor_room("Electrical team", "⚡", 10, 14, n_cols=5)
+
+    row3a, row3b, row3c = st.columns(3)
+    with row3a:
+        draw_floor_room("Account manager", "📊", 15, 17)
+    with row3b:
+        draw_floor_room("Sales team", "📈", 18, 20)
+    with row3c:
+        draw_floor_room("Accountant", "🧮", 21, 22)
+
+    st.markdown('<div class="floor-entrance">🚪 Entrance / pantry area</div>', unsafe_allow_html=True)
 
 # ─── TAB 2: PRIVATE MESSAGES ─────────────────────────────────────────────
 with tab_chat:
