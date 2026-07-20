@@ -445,17 +445,40 @@ for k, v in defaults.items():
 # cookies together — calling get() per-key can race the very first sync
 # on a fresh reconnect and silently return None even though the cookie
 # exists. getAll() forces one full, reliable sync.
+#
+# ✅ FIX #15: on a full browser reload (F5 / Ctrl+R), the cookie
+# controller's hidden iframe component has NOT mounted/synced yet on the
+# very first script run of a brand new browser page load. That means
+# cookies.getAll() can come back completely empty even though the cookie
+# is sitting right there in the browser - so the person gets bounced to
+# the login page despite having a valid "remember me" cookie. We only
+# want to do this retry once per session (not on every single rerun),
+# so we gate it behind a one-time flag.
 if not st.session_state.logged_in and COOKIES_AVAILABLE:
-    try:
-        all_cookies = cookies.getAll()
-    except Exception:
-        all_cookies = {}
-    cookie_email = all_cookies.get("pcas_email")
-    cookie_name  = all_cookies.get("pcas_name")
-    if cookie_email and cookie_name and cookie_email.endswith(ALLOWED_DOMAIN):
-        st.session_state.logged_in  = True
-        st.session_state.username   = cookie_name
-        st.session_state.user_email = cookie_email
+    if "cookie_check_attempted" not in st.session_state:
+        st.session_state.cookie_check_attempted = True
+
+        def _try_restore_from_cookies():
+            try:
+                all_cookies = cookies.getAll()
+            except Exception:
+                all_cookies = {}
+            cookie_email = all_cookies.get("pcas_email")
+            cookie_name  = all_cookies.get("pcas_name")
+            if cookie_email and cookie_name and cookie_email.endswith(ALLOWED_DOMAIN):
+                st.session_state.logged_in  = True
+                st.session_state.username   = cookie_name
+                st.session_state.user_email = cookie_email
+                return True
+            return False
+
+        # First attempt - works fine on WebSocket reconnects where the
+        # iframe component is already mounted from before.
+        if not _try_restore_from_cookies():
+            # Component likely isn't ready yet on a fresh full page load.
+            # Give it a brief moment to mount and sync, then try once more.
+            time.sleep(0.7)
+            _try_restore_from_cookies()
 
 # =========================================================================
 # LOGIN PAGE
