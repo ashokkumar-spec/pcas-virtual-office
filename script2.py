@@ -6,40 +6,32 @@ import time
 import base64
 import hashlib
 import os
+import secrets
 
 # ─────────────────────────────────────────────────────────────────────────
-# ✅ FIX #10: "Remember Me" cookie so login survives session drops.
+# ✅ FIX #10: "Remember Me" so login survives session drops.
 # Streamlit's st.session_state lives only as long as the browser's live
 # WebSocket connection. If the tab goes idle/background (phone lock, tab
 # switch, weak network), the connection can drop and reconnect as a BRAND
 # NEW session -> session_state resets -> user gets bounced back to login.
-# A browser cookie survives that reconnect, so we use one to silently
-# restore the login instead of forcing the person to type email+password
-# again every time they come back to the tab.
 #
-# ✅ FIX #16: switched from `streamlit-cookies-controller` to
-# `extra-streamlit-components` (stx.CookieManager). The old library's
-# component needed an unreliable browser -> server -> browser round trip
-# before a cookie write actually landed, which was inconsistent over the
-# network (especially on Streamlit Cloud) - cookies were often missing
-# right after login or right after a full page reload (F5). CookieManager
-# is the long-established, widely used library for this exact purpose and
-# syncs far more reliably.
-# pip install extra-streamlit-components
+# ✅ FIX #17: THE REAL FIX. We tried two different cookie-component
+# libraries (streamlit-cookies-controller, then extra-streamlit-components)
+# and both were unreliable on Streamlit Cloud - the browser <-> component
+# <-> Python round trip needed to read/write a cookie kept silently
+# failing (cookie never showed up in DevTools, or wasn't readable back).
+#
+# Instead we use something that needs NO round trip and NO browser cookie
+# API at all: the page URL itself. We put a random session token in the
+# URL as a query parameter (?st=...). The browser guarantees the URL
+# stays exactly the same across a WebSocket reconnect AND across a full
+# page reload (F5) - that's just how browsers work, no special component
+# needed. The token maps to the logged-in user in a small database table,
+# so on every script run we just check "is there a valid token in the
+# URL?" and restore the session from the database if so.
 # ─────────────────────────────────────────────────────────────────────────
-try:
-    import extra_streamlit_components as stx
-    cookie_manager = stx.CookieManager(key="pcas_cookie_manager")
-    COOKIES_AVAILABLE = True
-except ImportError:
-    COOKIES_AVAILABLE = False
-    st.warning("⚠️ Install `extra-streamlit-components` to stay logged in across reconnects: pip install extra-streamlit-components", icon="⚠️")
-
-# ✅ FIX #11: how long the "remember me" login should last (in seconds).
-# 30 days. Also used as the cookie max_age so browsers keep it as a
-# persistent cookie instead of a session-only cookie that can vanish
-# early on some browsers/devices.
-COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60  # 30 days
+COOKIES_AVAILABLE = True  # kept as a flag name for minimal diff elsewhere
+SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60  # 30 days
 
 st.set_page_config(
     page_title="PCAS VIRTUAL OFFICE v2",
@@ -246,6 +238,10 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS profiles (
         username TEXT PRIMARY KEY, photo_data TEXT)''')
 
+    # ✅ FIX #17 (cont.): sessions table backing the URL-token login persistence.
+    c.execute('''CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY, username TEXT, email TEXT, created_at REAL)''')
+
     conn.commit(); conn.close()
 
 init_db()
@@ -333,6 +329,31 @@ def get_profile_photo(username):
     cur = conn.execute("SELECT photo_data FROM profiles WHERE username=?", (username,))
     row = cur.fetchone(); conn.close()
     return row[0] if row else None
+
+# ✅ FIX #17 (cont.): session token helpers backing URL-based login persistence.
+def create_session(token, username, email):
+    conn = get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO sessions (token, username, email, created_at) VALUES (?,?,?,?)",
+        (token, username, email, time.time()))
+    conn.commit(); conn.close()
+
+def get_session(token):
+    conn = get_db()
+    cur = conn.execute("SELECT username, email, created_at FROM sessions WHERE token=?", (token,))
+    row = cur.fetchone(); conn.close()
+    if not row:
+        return None
+    username, email, created_at = row
+    if time.time() - created_at > SESSION_MAX_AGE_SECONDS:
+        delete_session(token)
+        return None
+    return username, email
+
+def delete_session(token):
+    conn = get_db()
+    conn.execute("DELETE FROM sessions WHERE token=?", (token,))
+    conn.commit(); conn.close()
 
 def file_to_base64(b): return base64.b64encode(b).decode("utf-8")
 
@@ -440,43 +461,32 @@ defaults = {
     "user_email": "",
     "chat_with": None,
     "show_photo_panel": False,
+    "session_token": None,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ✅ FIX #10 (cont.): if session_state was reset by a reconnect, but a
-# valid "remember me" cookie still exists, silently restore the login
-# instead of showing the login page again.
-#
-# ✅ FIX #16 (cont.): CookieManager.get_all() reads every cookie in one
-# reliable sync. Just like before, on a brand new full page load the
-# component can need a brief moment to mount, so we still retry once
-# after a short pause if the first read comes back empty - but this is
-# now just a safety net, not the primary fix (the primary fix is using a
-# more reliable library).
-if not st.session_state.logged_in and COOKIES_AVAILABLE:
-    if "cookie_check_attempts" not in st.session_state:
-        st.session_state.cookie_check_attempts = 0
-
-    if st.session_state.cookie_check_attempts < 2:
-        st.session_state.cookie_check_attempts += 1
-        try:
-            all_cookies = cookie_manager.get_all(key=f"pcas_get_all_cookies_{st.session_state.cookie_check_attempts}")
-        except Exception:
-            all_cookies = {}
-        cookie_email = (all_cookies or {}).get("pcas_email")
-        cookie_name  = (all_cookies or {}).get("pcas_name")
-        if cookie_email and cookie_name and cookie_email.endswith(ALLOWED_DOMAIN):
-            st.session_state.logged_in  = True
-            st.session_state.username   = cookie_name
-            st.session_state.user_email = cookie_email
-        elif st.session_state.cookie_check_attempts == 1:
-            # Component may not have mounted/synced yet on a brand new
-            # full page load. Give it a brief moment, then rerun once so
-            # the second pass (attempt #2) picks up the synced cookies.
-            time.sleep(0.7)
-            st.rerun()
+# ✅ FIX #10 (cont.) / FIX #17: if session_state was reset by a reconnect
+# or a full page reload, but the URL still has our session token in it
+# (?st=...), silently restore the login from the database instead of
+# showing the login page again. The URL is guaranteed by the browser to
+# stay the same across both a WebSocket reconnect and an F5 reload, so
+# this needs no cookie component and no round trip at all.
+if not st.session_state.logged_in:
+    url_token = st.query_params.get("st")
+    if url_token:
+        session = get_session(url_token)
+        if session:
+            restored_username, restored_email = session
+            st.session_state.logged_in   = True
+            st.session_state.username    = restored_username
+            st.session_state.user_email  = restored_email
+            st.session_state.session_token = url_token
+        else:
+            # stale/expired/unknown token in the URL - clear it so the
+            # login form doesn't keep trying to use it
+            st.query_params.pop("st", None)
 
 # =========================================================================
 # LOGIN PAGE
@@ -502,20 +512,16 @@ if not st.session_state.logged_in:
                     st.error("❌ Wrong passcode!")
                 else:
                     uname = em.split("@")[0].replace(".", " ").title()
-                    st.session_state.logged_in  = True
-                    st.session_state.username   = uname
-                    st.session_state.user_email = em
-                    if COOKIES_AVAILABLE:
-                        # ✅ FIX #13: explicit expiry so the cookie is a
-                        # persistent 30-day cookie, not a fragile
-                        # session-only cookie.
-                        expiry = datetime.datetime.now() + datetime.timedelta(seconds=COOKIE_MAX_AGE_SECONDS)
-                        cookie_manager.set("pcas_email", em, expires_at=expiry, key="pcas_set_email")
-                        cookie_manager.set("pcas_name", uname, expires_at=expiry, key="pcas_set_name")
-                        # ✅ FIX #14: give the browser a brief moment to
-                        # actually persist the cookies before we blow the
-                        # page away with st.rerun().
-                        time.sleep(0.5)
+                    # ✅ FIX #17 (cont.): create a random session token,
+                    # save it server-side, and put it in the URL. No
+                    # cookie APIs involved at all.
+                    token = secrets.token_urlsafe(24)
+                    create_session(token, uname, em)
+                    st.session_state.logged_in     = True
+                    st.session_state.username      = uname
+                    st.session_state.user_email    = em
+                    st.session_state.session_token = token
+                    st.query_params["st"] = token
                     st.rerun()
     st.stop()
 
@@ -558,19 +564,15 @@ with h4:
     if st.button("🚪 Logout", use_container_width=True):
         checkout_attendance(my_name, get_dubai_time().strftime("%I:%M %p"))
         clear_user_desk(my_name)
+        # ✅ FIX #17 (cont.): remove the server-side session record and
+        # strip the token out of the URL.
+        token = st.session_state.get("session_token")
+        if token:
+            delete_session(token)
+        st.query_params.pop("st", None)
         st.session_state.logged_in = False
         st.session_state.username  = ""
-        if COOKIES_AVAILABLE:
-            try:
-                cookie_manager.delete("pcas_email", key="pcas_del_email")
-            except KeyError:
-                pass
-            try:
-                cookie_manager.delete("pcas_name", key="pcas_del_name")
-            except KeyError:
-                pass
-            time.sleep(0.3)  # let the removal persist before we rerun
-        st.session_state.cookie_check_attempts = 0
+        st.session_state.session_token = None
         st.rerun()
 
 # ── PHOTO PANEL ──────────────────────────────────────────────────────────
